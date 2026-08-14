@@ -8,7 +8,8 @@ export default defineConfig(({ command }) => ({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    // O playground é referência visual: sourcemap facilita ler o GLSL no browser.
-    sourcemap: true,
+    // Sem sourcemap: são 6 MB que ninguém baixa em produção. O GLSL continua
+    // legível no bundle, que é o que importa para usar isto como referência.
+    sourcemap: false,
   },
 }));
