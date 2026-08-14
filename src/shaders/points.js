@@ -82,3 +82,39 @@ void main(){
   if(mask < 0.01) discard;
   gl_FragColor = vec4(uColor, uAlpha * mask);
 }`;
+
+
+/* Variante que amostra o ATLAS náutico em vez de desenhar por SDF.
+   As marcas IALA têm partes de cores diferentes (corpo, faixas, topmark), o
+   que um SDF de cor única não expressa — daí o atlas. `uTint` fica em 0 para
+   marcas náuticas: a cor da boia é informação normativa e não pode ser
+   sobrescrita pelo usuário. */
+export const POINT_ATLAS_FS = `
+precision highp float;
+varying vec2 vUv;
+varying float vKind;
+uniform sampler2D uAtlas;
+uniform vec2  uGrid;      /* colunas, linhas */
+uniform float uAlpha;
+uniform vec3  uTintColor;
+uniform float uTint;
+
+void main(){
+  /* CanvasTexture vem com flipY ligado: a linha 0 do canvas acaba na ÚLTIMA
+     linha da textura. Sem inverter aqui, cada marca mostra o glifo de outra —
+     e numa camada onde verde e vermelho têm significado oposto isso troca o
+     sentido da sinalização. */
+  float cellX = mod(vKind, uGrid.x);
+  float cellY = (uGrid.y - 1.0) - floor(vKind / uGrid.x);
+  vec2 cell = vec2(cellX, cellY);
+
+  /* vUv chega em −1..1; volta para 0..1 e mapeia na célula */
+  vec2 uv = (vUv * 0.5 + 0.5);
+  uv.y = 1.0 - uv.y;
+  vec2 auv = (cell + uv) / uGrid;
+
+  vec4 c = texture2D(uAtlas, auv);
+  if(c.a < 0.02) discard;
+  vec3 col = mix(c.rgb, uTintColor, uTint);
+  gl_FragColor = vec4(col, c.a * uAlpha);
+}`;

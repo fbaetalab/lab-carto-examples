@@ -50,16 +50,33 @@ export const LINES = {
   duto: { label: 'Duto submarino', pts: [[150, 120], [260, 150], [380, 132], [500, 96]] },
 };
 
-/* Pontos — sinalização náutica e estações. */
+/* Pontos. `family` decide o renderizador: 'generic' usa glifos por SDF,
+   'nautical' amostra o atlas IALA — onde a cor é normativa, não escolha. */
 export const POINTS = {
-  balizas: {
-    label: 'Sinalização',
+  estacoes: {
+    label: 'Estações',
+    family: 'generic',
     items: [
-      { at: [252, -250], kind: 0, label: 'Baliza lateral verde 3' },
-      { at: [372, -120], kind: 0, label: 'Baliza lateral vermelha 2' },
-      { at: [268, 190], kind: 2, label: 'Perigo isolado' },
       { at: [430, 60], kind: 3, label: 'Estação maregráfica' },
       { at: [176, -150], kind: 4, label: 'Ponto de atracação' },
+      { at: [120, 40], kind: 1, label: 'Torre de controle' },
+    ],
+  },
+  /* Balizamento do canal, Região B: entrando do mar (−z para +z), a margem
+     ESQUERDA é bombordo/verde com numeração ÍMPAR e a direita boreste/
+     vermelha com numeração PAR. */
+  balizamento: {
+    label: 'Balizamento IALA',
+    family: 'nautical',
+    items: [
+      { at: [258, -300], mark: 'lateralPort', label: 'Verde 3' },
+      { at: [352, -290], mark: 'lateralStbd', label: 'Vermelha 2' },
+      { at: [272, -40], mark: 'lateralPort', label: 'Verde 5' },
+      { at: [368, -20], mark: 'lateralStbd', label: 'Vermelha 4' },
+      { at: [318, 210], mark: 'safeWater', label: 'Águas seguras' },
+      { at: [452, 140], mark: 'isolatedDanger', label: 'Perigo isolado' },
+      { at: [500, -60], mark: 'cardinalS', label: 'Cardinal Sul' },
+      { at: [206, 170], mark: 'specialMark', label: 'Marca especial' },
     ],
   },
 };
@@ -117,6 +134,8 @@ export const defaultPoint = () => ({
   on: true, kind: 0, size: 22,
   color: '#8FE0BF', opacity: 1,
   labels: true,
+  /* Marcas náuticas ignoram `color`: a cor IALA é normativa. */
+  tint: false,
 });
 
 const layer = (id, name, code, geometry, fill, stroke, volume) => ({
@@ -179,8 +198,10 @@ export const INITIAL_LAYERS = [
   lineLayer('duto', 'Duto submarino', 'DT-09', 'duto',
     { style: 5, color: '#F59E0B', width: 4 }),
 
-  pointLayer('sinais', 'Sinalização náutica', 'SN-10', 'balizas',
-    { kind: 0, size: 22, color: '#8FE0BF' }),
+  pointLayer('estacoes', 'Estações e sensores', 'ES-10', 'estacoes',
+    { kind: 3, size: 20, color: '#8FE0BF' }),
+  pointLayer('balizas', 'Balizamento IALA', 'BZ-11', 'balizamento',
+    { size: 46, labels: true }),
 ];
 
 /* Cor representativa da camada na lista: a mais "presente" dos três. */

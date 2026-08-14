@@ -8,7 +8,8 @@ import { buildMaskTexture } from '../lib/textures.js';
 import { makePatternMaterial, rgba, fillMaterials } from '../render/patternMaterial.js';
 import { WALL_VS, WALL_FS, VOL_FS, OUT_VS, OUT_FS } from '../shaders/demarcation.js';
 import { LINE_VS, LINE_FS } from '../shaders/lines.js';
-import { POINT_VS, POINT_FS } from '../shaders/points.js';
+import { POINT_VS, POINT_FS, POINT_ATLAS_FS } from '../shaders/points.js';
+import { buildNauticalAtlas, markIndex } from '../lib/nauticalAtlas.js';
 import { Html } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useStore } from '../store.js';
@@ -18,6 +19,10 @@ import { useStore } from '../store.js';
    preenchimentos com padrões e cores distintos convivendo na mesma cena. */
 
 const clock = { t: 0 };
+
+/* Atlas náutico como singleton preguiçoso — 12 desenhos de canvas, uma vez. */
+let _atlas = null;
+const getAtlas = () => (_atlas ??= buildNauticalAtlas());
 
 export default function Layers() {
   const layers = useStore((s) => s.layers);
@@ -83,6 +88,12 @@ function PointLayer({ layer }) {
     [src],
   );
 
+  const nautical = src.family === 'nautical';
+
+  /* O atlas é gerado uma vez por processo: são 12 desenhos de canvas, e
+     recriá-lo por camada seria desperdício. */
+  const atlas = useMemo(() => (nautical ? getAtlas() : null), [nautical]);
+
   const geometry = useMemo(() => {
     const g = new THREE.InstancedBufferGeometry();
     const base = new THREE.PlaneGeometry(1, 1);
@@ -92,24 +103,33 @@ function PointLayer({ layer }) {
     g.setAttribute('offset', new THREE.InstancedBufferAttribute(
       new Float32Array(items.flatMap((it) => [it.at[0], it.y, it.at[1]])), 3));
     g.setAttribute('kind', new THREE.InstancedBufferAttribute(
-      new Float32Array(items.map((it) => (it.kind ?? p.kind))), 1));
+      new Float32Array(items.map((it) => (nautical ? markIndex(it.mark) : (it.kind ?? p.kind)))), 1));
     g.instanceCount = items.length;
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2000);
     return g;
-  }, [items, p.kind]);
+  }, [items, p.kind, nautical]);
   useLayoutEffect(() => () => geometry.dispose(), [geometry]);
 
   const material = useMemo(() => new THREE.ShaderMaterial({
     vertexShader: POINT_VS,
-    fragmentShader: POINT_FS,
-    uniforms: {
+    fragmentShader: nautical ? POINT_ATLAS_FS : POINT_FS,
+    uniforms: nautical ? {
+      uAtlas: { value: atlas.texture },
+      uGrid: { value: new THREE.Vector2(atlas.cols, atlas.rows) },
+      uAlpha: { value: p.opacity },
+      uTintColor: { value: new THREE.Color(p.color) },
+      /* 0 = respeita a cor IALA. Tingir uma boia destrói a informação. */
+      uTint: { value: p.tint ? 1 : 0 },
+      uSizePx: { value: p.size },
+      uViewport: { value: new THREE.Vector2(1, 1) },
+    } : {
       uColor: { value: new THREE.Color(p.color) },
       uAlpha: { value: p.opacity },
       uSizePx: { value: p.size },
       uViewport: { value: new THREE.Vector2(1, 1) },
     },
     transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
-  }), [p.color, p.opacity, p.size]);
+  }), [p.color, p.opacity, p.size, p.tint, nautical, atlas]);
   useLayoutEffect(() => () => material.dispose(), [material]);
 
   useFrame(({ viewport }) => {
@@ -126,9 +146,9 @@ function PointLayer({ layer }) {
       {p.labels && items.map((it, i) => (
         <Html key={i} position={[it.at[0], it.y, it.at[1]]} style={{ pointerEvents: 'none' }} zIndexRange={[10, 0]}>
           <div style={{ display: 'flex', alignItems: 'center', transform: 'translate(0,-50%)' }}>
-            <span style={{ width: 22, height: 1, background: p.color, opacity: 0.7, flex: 'none' }} />
+            <span style={{ width: 22, height: 1, background: nautical ? '#9CA3AF' : p.color, opacity: 0.7, flex: 'none' }} />
             <span style={{
-              font: '500 10px/1.3 Inter, sans-serif', color: p.color,
+              font: '500 10px/1.3 Inter, sans-serif', color: nautical ? '#D4D4D8' : p.color,
               whiteSpace: 'nowrap', letterSpacing: '.04em', paddingLeft: 6, textShadow: '0 1px 3px rgba(0,0,0,.9)',
             }}>{it.label}</span>
           </div>
