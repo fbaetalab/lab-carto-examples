@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab de Padrões Cartográficos</title>
+<style>
+  :root{
+    --bg:#0C1114; --panel:#11181D; --panel2:#161F25; --line:#233038;
+    --tx:#C7D3D9; --tx-dim:#6E8089; --accent:#45D6C4; --accent-dim:#1E4A45;
+    --warn:#D68A45;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,"Roboto Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:12px;overflow:hidden}
+  #app{display:flex;flex-direction:column;height:100%}
+
+  header{display:flex;align-items:center;gap:16px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:12px;letter-spacing:.18em;font-weight:600;color:var(--tx)}
+  header h1 span{color:var(--accent)}
+  #readouts{display:flex;gap:18px;margin-left:auto}
+  .ro{display:flex;flex-direction:column;align-items:flex-end}
+  .ro b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+  .ro i{font-style:normal;color:var(--tx-dim);font-size:10px;letter-spacing:.08em}
+  header button{background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;padding:6px 12px;cursor:pointer}
+  header button:hover{border-color:var(--accent);color:var(--accent)}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+  main{display:flex;flex:1;min-height:0}
+  #viewport{position:relative;flex:1;min-width:0;cursor:grab}
+  #viewport.dragging{cursor:grabbing}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #hint{position:absolute;left:12px;top:10px;color:var(--tx-dim);font-size:10px;letter-spacing:.06em;pointer-events:none}
+
+  aside{width:312px;border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding-bottom:24px}
+  section{padding:12px 14px;border-bottom:1px solid var(--line)}
+  section h2{font-size:10px;letter-spacing:.2em;color:var(--tx-dim);font-weight:600;margin-bottom:10px}
+
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .grid button,.seg button{background:var(--panel2);border:1px solid var(--line);color:var(--tx-dim);font:inherit;font-size:10px;padding:7px 2px;cursor:pointer}
+  .grid button:hover,.seg button:hover{color:var(--tx)}
+  .grid button.on,.seg button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+
+  .row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .row label{flex:0 0 96px;color:var(--tx-dim)}
+  .row output{flex:0 0 62px;text-align:right;color:var(--tx);font-variant-numeric:tabular-nums}
+  input[type=range]{flex:1;accent-color:var(--accent);height:14px}
+  input[type=color]{width:34px;height:22px;border:1px solid var(--line);background:none;padding:0;cursor:pointer}
+  input[type=checkbox]{accent-color:var(--accent)}
+  .chk{display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;color:var(--tx)}
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .presets button{background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:10px;padding:8px 6px;cursor:pointer;text-align:left}
+  .presets button:hover{border-color:var(--accent)}
+  .presets button small{display:block;color:var(--tx-dim);margin-top:2px}
+  #toast{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--accent);padding:6px 14px;opacity:0;transition:opacity .2s;pointer-events:none}
+  #glfail{position:absolute;inset:0;display:none;place-items:center;color:var(--warn);padding:24px;text-align:center}
+  @media (max-width:820px){ main{flex-direction:column} aside{width:100%;border-left:none;border-top:1px solid var(--line);max-height:45%} }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>LAB DE PADRÕES <span>CARTOGRÁFICOS</span></h1>
+    <div id="readouts">
+      <div class="ro"><b id="roPpm">–</b><i>PX / METRO</i></div>
+      <div class="ro"><b id="roSpacing">–</b><i>ESPAÇ. EFETIVO</i></div>
+      <div class="ro"><b id="roLevel">–</b><i>NÍVEL SNAP</i></div>
+    </div>
+    <button id="btnPng">Exportar PNG</button>
+    <button id="btnJson">Copiar JSON</button>
+  </header>
+  <main>
+    <div id="viewport">
+      <canvas id="gl"></canvas>
+      <canvas id="ov"></canvas>
+      <div id="hint">arrastar = pan · scroll = zoom</div>
+      <div id="toast"></div>
+      <div id="glfail">Este navegador não suporta WebGL2.</div>
+    </div>
+    <aside>
+      <section>
+        <h2>PADRÃO</h2>
+        <div class="grid" id="patGrid"></div>
+      </section>
+      <section>
+        <h2>MODO DE ESCALA</h2>
+        <div class="seg" id="modeSeg"></div>
+      </section>
+      <section>
+        <h2>PARÂMETROS</h2>
+        <div class="row"><label id="lblSpacing">espaçamento (m)</label><input type="range" id="spacing" min="0.5" max="120" step="0.5"><output id="oSpacing"></output></div>
+        <div class="row"><label id="lblLw">espessura</label><input type="range" id="lw" min="0.1" max="40" step="0.1"><output id="oLw"></output></div>
+        <div class="row"><label>rotação (°)</label><input type="range" id="rot" min="0" max="180" step="1"><output id="oRot"></output></div>
+        <div class="row"><label>zoom (px/m)</label><input type="range" id="zoom" min="-4.4" max="6" step="0.02"><output id="oZoom"></output></div>
+      </section>
+      <section>
+        <h2>CORES</h2>
+        <div class="row"><label>base</label><input type="color" id="baseColor"><input type="range" id="baseA" min="0" max="1" step="0.01"><output id="oBaseA"></output></div>
+        <div class="row"><label>padrão</label><input type="color" id="patColor"><input type="range" id="patA" min="0" max="1" step="0.01"><output id="oPatA"></output></div>
+        <div class="row"><label>contorno</label><input type="color" id="outColor"><input type="range" id="outW" min="0" max="8" step="0.5"><output id="oOutW"></output></div>
+        <div class="row"><label>dash contorno</label><input type="range" id="dash" min="0" max="24" step="1"><output id="oDash"></output></div>
+      </section>
+      <section>
+        <h2>HYBRID · limites em pixels</h2>
+        <div class="row"><label>alvo (px)</label><input type="range" id="targetPx" min="6" max="80" step="1"><output id="oTarget"></output></div>
+        <div class="row"><label>mín (px)</label><input type="range" id="minPx" min="2" max="24" step="1"><output id="oMin"></output></div>
+        <div class="row"><label>máx (px)</label><input type="range" id="maxPx" min="24" max="220" step="2"><output id="oMax"></output></div>
+      </section>
+      <section>
+        <h2>CAMADAS</h2>
+        <label class="chk"><input type="checkbox" id="mask" checked> recortar nos polígonos</label>
+        <label class="chk"><input type="checkbox" id="grat" checked> graticule (mundo)</label>
+        <label class="chk"><input type="checkbox" id="tiles"> bordas de tile (512 m)</label>
+      </section>
+      <section>
+        <h2>PRESETS · estilos da spec</h2>
+        <div class="presets" id="presets"></div>
+      </section>
+    </aside>
+  </main>
+</div>
+
+<script>
+'use strict';
+/* ============================================================
+   Lab de Padrões Cartográficos — implementação de referência.
+   Os SDFs abaixo (GLSL) portam 1:1 para o HLSL da spec Unity.
+   ============================================================ */
+
+const PATTERNS = ['Solid','Hatch','CrossHatch','Dots','Plus','Cross','Checker','Bands'];
+const MODES = ['WorldMeters','ScreenPixels','Hybrid'];
+
+const state = {
+  pattern: 2, mode: 2,
+  spacing: 12, lw: 1.5, rot: 45,
+  ppm: 1.6,                          // pixels por metro (zoom visual)
+  origin: {x: -320, y: -260},        // coord de mundo (m) do canto inferior esquerdo
+  baseColor: '#D64545', baseA: 0.25,
+  patColor: '#7A1010', patA: 0.9,
+  outColor: '#FF5050', outW: 2, dash: 8,
+  targetPx: 24, minPx: 6, maxPx: 96,
+  mask: true, grat: true, tiles: false,
+};
+
+const PRESETS = [
+  {n:'Zona restrita', d:'CrossHatch 45°', p:{pattern:2,mode:2,spacing:12,lw:1.5,rot:45,baseColor:'#D64545',baseA:.25,patColor:'#7A1010',patA:.9,outColor:'#FF5050',outW:2,dash:8}},
+  {n:'Fundeio', d:'Plus esparso', p:{pattern:4,mode:2,spacing:26,lw:2,rot:0,baseColor:'#2A6FB0',baseA:.14,patColor:'#7FB8E8',patA:.95,outColor:'#7FB8E8',outW:1.5,dash:0}},
+  {n:'Área dragada', d:'Dots + dash', p:{pattern:3,mode:2,spacing:10,lw:2.4,rot:0,baseColor:'#3E7CB8',baseA:.10,patColor:'#9DC7EA',patA:.9,outColor:'#9DC7EA',outW:1.5,dash:6}},
+  {n:'Sobreposição', d:'Hatch 45°', p:{pattern:1,mode:2,spacing:9,lw:1.2,rot:45,baseColor:'#C9A227',baseA:.15,patColor:'#E4C75B',patA:.85,outColor:'#E4C75B',outW:1,dash:0}},
+  {n:'Buffer', d:'Wash sólido', p:{pattern:0,mode:0,spacing:12,lw:1,rot:0,baseColor:'#45D6C4',baseA:.18,patColor:'#45D6C4',patA:0,outColor:'#45D6C4',outW:1,dash:0}},
+  {n:'Limite adm.', d:'Outline only', p:{pattern:0,mode:0,baseColor:'#C7D3D9',baseA:0,patColor:'#C7D3D9',patA:0,outColor:'#C7D3D9',outW:2.5,dash:12}},
+  {n:'Corredor', d:'Bands diagonais', p:{pattern:7,mode:2,spacing:28,lw:11,rot:60,baseColor:'#8A5FBF',baseA:.10,patColor:'#B08FE0',patA:.55,outColor:'#B08FE0',outW:0,dash:0}},
+  {n:'Interdição', d:'Cross (×)', p:{pattern:5,mode:2,spacing:18,lw:1.8,rot:0,baseColor:'#D64545',baseA:.12,patColor:'#FF7B6B',patA:.95,outColor:'#FF7B6B',outW:2,dash:4}},
+];
+
+/* Polígonos de teste em coordenadas de mundo (metros). A: côncavo com furo. B: pequeno. */
+const POLY_A_OUTER = [[-180,-120],[120,-160],[200,-20],[90,40],[150,160],[-40,120],[-120,170],[-200,30]];
+const POLY_A_HOLE  = [[-60,-40],[30,-60],[50,10],[-30,30]];
+const POLY_B       = [[240,-120],[320,-140],[340,-70],[260,-50]];
+
+/* ---------------- WebGL ---------------- */
+const glCanvas = document.getElementById('gl');
+const ovCanvas = document.getElementById('ov');
+const viewport = document.getElementById('viewport');
+const gl = glCanvas.getContext('webgl2', {alpha:true, premultipliedAlpha:false, preserveDrawingBuffer:true});
+if(!gl){ document.getElementById('glfail').style.display='grid'; }
+
+const VS = `#version 300 es
+in vec2 a_pos; void main(){ gl_Position = vec4(a_pos,0.,1.); }`;
+
+const FS = `#version 300 es
+precision highp float;
+out vec4 outColor;
+uniform vec2  u_res;
+uniform float u_ppm;
+uniform vec2  u_origin;
+uniform int   u_pattern;
+uniform int   u_mode;
+uniform float u_spacing;
+uniform float u_lw;
+uniform float u_rot;
+uniform vec4  u_base;
+uniform vec4  u_pat;
+uniform float u_targetPx, u_minPx, u_maxPx;
+uniform sampler2D u_mask;
+uniform int   u_useMask;
+
+mat2 rot2(float a){ float c=cos(a), s=sin(a); return mat2(c,-s,s,c); }
+
+/* Linhas em k*s; indices impares fazem fade (f) — LOD hierarquico sem duplicidade */
+float lineCov(float x, float s, float hw, float f){
+  float n  = floor(x/s + 0.5);
+  float d  = abs(x - n*s);
+  float aa = max(fwidth(x), 1e-6);
+  float c  = 1.0 - smoothstep(hw-aa, hw+aa, d);
+  float odd = step(0.5, abs(mod(n, 2.0)));
+  return c * mix(1.0, 1.0-f, odd);
+}
+vec2 cellOf(vec2 p, float s, out vec2 id){
+  vec2 q = p/s + 0.5; id = floor(q);
+  return (fract(q) - 0.5) * s;
+}
+float cellFade(vec2 id, float f){
+  float odd = max(step(0.5, abs(mod(id.x,2.0))), step(0.5, abs(mod(id.y,2.0))));
+  return mix(1.0, 1.0-f, odd);
+}
+float discCov(float sd, float aa){ return 1.0 - smoothstep(-aa, aa, sd); }
+float sdPlus(vec2 c, float arm, float t){
+  vec2 a = abs(c);
+  return min(max(a.x-arm, a.y-t), max(a.y-arm, a.x-t));
+}
+float checkerCov(vec2 p, float s){
+  vec2 q = p/s; vec2 w = max(fwidth(q), vec2(1e-6));
+  vec2 i = 2.0*(abs(fract((q-0.5*w)*0.5)-0.5) - abs(fract((q+0.5*w)*0.5)-0.5))/w;
+  return 0.5 - 0.5*i.x*i.y;
+}
+float meanCov(float s, float hw){
+  if(u_pattern==1||u_pattern==7) return clamp(2.0*hw/s, 0.0, 1.0);
+  if(u_pattern==2) return clamp(4.0*hw/s, 0.0, 1.0);
+  if(u_pattern==3) return clamp(3.14159*hw*hw/(s*s), 0.0, 1.0);
+  if(u_pattern==4||u_pattern==5) return clamp(2.4*hw/s, 0.0, 1.0);
+  if(u_pattern==6) return 0.5;
+  return 0.0;
+}
+float pat(vec2 p, float s, float hw, float arm, float f){
+  float aa = max(length(fwidth(p)), 1e-6);
+  if(u_pattern==1||u_pattern==7) return lineCov(p.y, s, hw, f);
+  if(u_pattern==2) return max(lineCov(p.y, s, hw, f), lineCov(p.x, s, hw, f));
+  vec2 id; vec2 c = cellOf(p, s, id);
+  if(u_pattern==3) return discCov(length(c)-hw, aa) * cellFade(id, f);
+  if(u_pattern==4) return discCov(sdPlus(c, arm, hw), aa) * cellFade(id, f);
+  if(u_pattern==5) return discCov(sdPlus(rot2(0.7853982)*c, arm, hw), aa) * cellFade(id, f);
+  if(u_pattern==6) return checkerCov(p, s);
+  return 0.0;
+}
+
+void main(){
+  vec2 frag = gl_FragCoord.xy;
+  float m = (u_useMask==1) ? texture(u_mask, frag/u_res).r : 1.0;
+  if(m < 0.002){ outColor = vec4(0.0); return; }
+
+  vec2 world = u_origin + frag / u_ppm;
+  vec2 p = (u_mode==1) ? frag : world;
+  p = rot2(-u_rot) * p;
+
+  float cov = 0.0;
+  if(u_pattern != 0){
+    if(u_mode == 2){
+      /* Adaptativo: fase em k*s alinha o nivel grosso como subconjunto do fino;
+         so os elementos intermediarios fazem fade — nunca ha dois padroes sobrepostos */
+      float duty = u_lw / u_spacing;
+      float spacingPx = u_spacing * u_ppm;
+      float lf = log2(u_targetPx / spacingPx);
+      lf = clamp(lf, log2(u_minPx/spacingPx), log2(u_maxPx/spacingPx));
+      lf = clamp(lf, -14.0, 14.0);
+      float s, f;
+      if(u_pattern==6){ s = u_spacing*exp2(floor(lf+0.5)); f = 0.0; }
+      else { s = u_spacing*exp2(floor(lf)); f = fract(lf); }
+      float hw  = 0.5 * duty * u_targetPx / u_ppm;   /* espessura constante em px */
+      float arm = 0.30 * u_targetPx / u_ppm;         /* simbolo constante em px */
+      cov = pat(p, s, hw, arm, f);
+    } else {
+      cov = pat(p, u_spacing, u_lw*0.5, 0.30*u_spacing, 0.0);
+      if(u_mode == 0){
+        float spx = u_spacing * u_ppm;
+        cov = mix(cov, meanCov(u_spacing, u_lw*0.5), 1.0 - smoothstep(1.5, 3.5, spx));
+      }
+    }
+  }
+  vec4 patC = vec4(u_pat.rgb, u_pat.a * cov);
+  float a   = patC.a + u_base.a * (1.0 - patC.a);
+  vec3 rgb  = a > 0.0 ? (patC.rgb*patC.a + u_base.rgb*u_base.a*(1.0-patC.a)) / a : vec3(0.0);
+  outColor  = vec4(rgb, a * m);
+}`;
+
+let prog, uni = {}, maskTex, maskCtx, maskCanvas;
+function initGL(){
+  if(!gl) return;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s)); return s; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  ['u_res','u_ppm','u_origin','u_pattern','u_mode','u_spacing','u_lw','u_rot','u_base','u_pat',
+   'u_targetPx','u_minPx','u_maxPx','u_mask','u_useMask'].forEach(n => uni[n] = gl.getUniformLocation(prog, n));
+  maskCanvas = document.createElement('canvas');
+  maskCtx = maskCanvas.getContext('2d');
+  maskTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, maskTex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+/* ---------------- Coordenadas ---------------- */
+let W = 0, H = 0, DPR = 1;
+function worldToScreen(wx, wy){ return [ (wx - state.origin.x) * state.ppm, H - (wy - state.origin.y) * state.ppm ]; }
+function screenToWorld(sx, sy){ return [ state.origin.x + sx / state.ppm, state.origin.y + (H - sy) / state.ppm ]; }
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const r = viewport.getBoundingClientRect();
+  W = Math.max(2, Math.round(r.width * DPR)); H = Math.max(2, Math.round(r.height * DPR));
+  [glCanvas, ovCanvas].forEach(c => { c.width = W; c.height = H; });
+  if(maskCanvas){ maskCanvas.width = W; maskCanvas.height = H; }
+  if(gl) gl.viewport(0, 0, W, H);
+  render();
+}
+
+/* ---------------- Máscara dos polígonos ---------------- */
+function pathPoly(ctx, pts){ pts.forEach((p,i)=>{ const s=worldToScreen(p[0],p[1]); i?ctx.lineTo(s[0],s[1]):ctx.moveTo(s[0],s[1]); }); ctx.closePath(); }
+function drawMask(){
+  const c = maskCtx;
+  c.clearRect(0,0,W,H);
+  c.fillStyle = '#fff';
+  c.beginPath(); pathPoly(c, POLY_A_OUTER); pathPoly(c, POLY_A_HOLE); c.fill('evenodd');
+  c.beginPath(); pathPoly(c, POLY_B); c.fill();
+  gl.bindTexture(gl.TEXTURE_2D, maskTex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, maskCanvas);
+}
+
+/* ---------------- Overlay: graticule, tiles, contorno, escala ---------------- */
+function niceStep(minPx){ // menor passo {1,2,5}·10^k com projeção >= minPx
+  let s = Math.pow(10, Math.floor(Math.log10(minPx / state.ppm)));
+  for(const m of [1,2,5,10,20,50]){ if(s*m*state.ppm >= minPx) return s*m; }
+  return s*100;
+}
+function drawOverlay(){
+  const c = ovCanvas.getContext('2d');
+  c.clearRect(0,0,W,H);
+  const [wx0, wy0] = screenToWorld(0,H), [wx1, wy1] = screenToWorld(W,0);
+
+  if(state.grat){
+    const step = niceStep(70*DPR);
+    c.strokeStyle = 'rgba(199,211,217,0.07)'; c.lineWidth = 1;
+    for(let x = Math.floor(wx0/step)*step; x <= wx1; x += step){ const s=worldToScreen(x,0); c.beginPath(); c.moveTo(s[0],0); c.lineTo(s[0],H); c.stroke(); }
+    for(let y = Math.floor(wy0/step)*step; y <= wy1; y += step){ const s=worldToScreen(0,y); c.beginPath(); c.moveTo(0,s[1]); c.lineTo(W,s[1]); c.stroke(); }
+  }
+  if(state.tiles){
+    const T = 512;
+    c.strokeStyle = 'rgba(69,214,196,0.28)'; c.lineWidth = 1; c.setLineDash([6*DPR,4*DPR]);
+    for(let x = Math.floor(wx0/T)*T; x <= wx1; x += T){ const s=worldToScreen(x,0); c.beginPath(); c.moveTo(s[0],0); c.lineTo(s[0],H); c.stroke(); }
+    for(let y = Math.floor(wy0/T)*T; y <= wy1; y += T){ const s=worldToScreen(0,y); c.beginPath(); c.moveTo(0,s[1]); c.lineTo(W,s[1]); c.stroke(); }
+    c.setLineDash([]);
+  }
+  if(state.outW > 0){
+    c.strokeStyle = state.outColor; c.lineWidth = state.outW * DPR;
+    c.setLineDash(state.dash > 0 ? [state.dash*DPR, state.dash*0.6*DPR] : []);
+    c.lineJoin = 'miter';
+    c.beginPath(); pathPoly(c, POLY_A_OUTER); c.stroke();
+    c.beginPath(); pathPoly(c, POLY_A_HOLE);  c.stroke();
+    c.beginPath(); pathPoly(c, POLY_B);       c.stroke();
+    c.setLineDash([]);
+  }
+  // barra de escala
+  const step = niceStep(80*DPR), px = step*state.ppm;
+  const x0 = 14*DPR, y0 = H - 18*DPR;
+  c.strokeStyle = 'rgba(199,211,217,0.9)'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(x0, y0); c.lineTo(x0+px, y0); c.moveTo(x0, y0-5*DPR); c.lineTo(x0, y0+5*DPR); c.moveTo(x0+px, y0-5*DPR); c.lineTo(x0+px, y0+5*DPR); c.stroke();
+  c.fillStyle = 'rgba(199,211,217,0.9)'; c.font = `${10*DPR}px ui-monospace, monospace`;
+  c.fillText(step >= 1000 ? (step/1000)+' km' : step+' m', x0 + px + 8*DPR, y0 + 4*DPR);
+}
+
+/* ---------------- Render ---------------- */
+function hexToRgb(h){ return [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255]; }
+function render(){
+  if(!gl || !prog) return;
+  drawMask();
+  gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.uniform2f(uni.u_res, W, H);
+  gl.uniform1f(uni.u_ppm, state.ppm * (state.mode===1 ? 1 : 1)); // ppm em device px
+  gl.uniform2f(uni.u_origin, state.origin.x, state.origin.y);
+  gl.uniform1i(uni.u_pattern, state.pattern);
+  gl.uniform1i(uni.u_mode, state.mode);
+  const sp = state.mode===1 ? state.spacing * DPR : state.spacing;   // screen: slider em px CSS
+  const lw = state.mode===1 ? state.lw * DPR      : state.lw;
+  gl.uniform1f(uni.u_spacing, sp);
+  gl.uniform1f(uni.u_lw, lw);
+  gl.uniform1f(uni.u_rot, state.rot * Math.PI/180);
+  const b = hexToRgb(state.baseColor), p = hexToRgb(state.patColor);
+  gl.uniform4f(uni.u_base, b[0],b[1],b[2], state.baseA);
+  gl.uniform4f(uni.u_pat,  p[0],p[1],p[2], state.patA);
+  gl.uniform1f(uni.u_targetPx, state.targetPx*DPR);
+  gl.uniform1f(uni.u_minPx, state.minPx*DPR);
+  gl.uniform1f(uni.u_maxPx, state.maxPx*DPR);
+  gl.uniform1i(uni.u_useMask, state.mask ? 1 : 0);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, maskTex); gl.uniform1i(uni.u_mask, 0);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  drawOverlay();
+  readouts();
+}
+function readouts(){
+  document.getElementById('roPpm').textContent = (state.ppm/DPR).toFixed(2);
+  if(state.mode === 2){
+    const spacingPx = state.spacing * state.ppm;
+    let level = Math.log2(state.targetPx*DPR / spacingPx);
+    level = Math.min(Math.max(level, Math.log2(state.minPx*DPR/spacingPx)), Math.log2(state.maxPx*DPR/spacingPx));
+    const l0 = Math.floor(level), f = level - l0;
+    const eff = state.spacing * Math.pow(2, level) * state.ppm / DPR;
+    document.getElementById('roLevel').textContent = `${l0} +${(f*100)|0}%`;
+    document.getElementById('roSpacing').textContent = eff.toFixed(1) + ' px';
+  } else if(state.mode === 1){
+    document.getElementById('roLevel').textContent = '—';
+    document.getElementById('roSpacing').textContent = state.spacing.toFixed(1) + ' px';
+  } else {
+    document.getElementById('roLevel').textContent = '—';
+    document.getElementById('roSpacing').textContent = (state.spacing*state.ppm/DPR).toFixed(1) + ' px';
+  }
+}
+
+/* ---------------- Interação ---------------- */
+let drag = null;
+viewport.addEventListener('pointerdown', e => { drag = {x:e.clientX, y:e.clientY}; viewport.classList.add('dragging'); viewport.setPointerCapture(e.pointerId); });
+viewport.addEventListener('pointermove', e => {
+  if(!drag) return;
+  state.origin.x -= (e.clientX - drag.x)*DPR / state.ppm;
+  state.origin.y += (e.clientY - drag.y)*DPR / state.ppm;
+  drag = {x:e.clientX, y:e.clientY};
+  render();
+});
+viewport.addEventListener('pointerup', () => { drag = null; viewport.classList.remove('dragging'); });
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = viewport.getBoundingClientRect();
+  const sx = (e.clientX - r.left)*DPR, sy = (e.clientY - r.top)*DPR;
+  const [wx, wy] = screenToWorld(sx, sy);
+  const f = Math.exp(-e.deltaY * 0.0016);
+  state.ppm = Math.min(Math.max(state.ppm * f, Math.exp(-4.4)*DPR), Math.exp(6)*DPR);
+  state.origin.x = wx - sx/state.ppm;
+  state.origin.y = wy - (H - sy)/state.ppm;
+  syncZoomSlider(); render();
+}, {passive:false});
+
+/* ---------------- UI ---------------- */
+const $ = id => document.getElementById(id);
+function buildButtons(){
+  PATTERNS.forEach((n,i)=>{
+    const b = document.createElement('button'); b.textContent = n;
+    b.onclick = () => { state.pattern = i; refreshUI(); render(); };
+    $('patGrid').appendChild(b);
+  });
+  MODES.forEach((n,i)=>{
+    const b = document.createElement('button'); b.textContent = n;
+    b.onclick = () => { state.mode = i; refreshUI(); render(); };
+    $('modeSeg').appendChild(b);
+  });
+  PRESETS.forEach(pr=>{
+    const b = document.createElement('button');
+    b.innerHTML = `${pr.n}<small>${pr.d}</small>`;
+    b.onclick = () => { Object.assign(state, pr.p); refreshUI(); render(); };
+    $('presets').appendChild(b);
+  });
+}
+const sliders = [
+  ['spacing','oSpacing', v=>v.toFixed(1)], ['lw','oLw', v=>v.toFixed(1)], ['rot','oRot', v=>v+'°'],
+  ['baseA','oBaseA', v=>v.toFixed(2)], ['patA','oPatA', v=>v.toFixed(2)],
+  ['outW','oOutW', v=>v.toFixed(1)+' px'], ['dash','oDash', v=>v? v+' px':'sólido'],
+  ['targetPx','oTarget', v=>v+' px'], ['minPx','oMin', v=>v+' px'], ['maxPx','oMax', v=>v+' px'],
+];
+function bindUI(){
+  sliders.forEach(([id,out,fmt])=>{
+    $(id).addEventListener('input', e=>{ state[id] = parseFloat(e.target.value); $(out).textContent = fmt(state[id]); render(); });
+  });
+  $('zoom').addEventListener('input', e=>{
+    const [cwx,cwy] = screenToWorld(W/2, H/2);
+    state.ppm = Math.exp(parseFloat(e.target.value)) * DPR;
+    state.origin.x = cwx - (W/2)/state.ppm; state.origin.y = cwy - (H/2)/state.ppm;
+    $('oZoom').textContent = (state.ppm/DPR).toFixed(2); render();
+  });
+  ['baseColor','patColor','outColor'].forEach(id => $(id).addEventListener('input', e=>{ state[id]=e.target.value; render(); }));
+  ['mask','grat','tiles'].forEach(id => $(id).addEventListener('change', e=>{ state[id]=e.target.checked; render(); }));
+  $('btnPng').onclick = exportPNG;
+  $('btnJson').onclick = copyJSON;
+}
+function syncZoomSlider(){ $('zoom').value = Math.log(state.ppm/DPR); $('oZoom').textContent = (state.ppm/DPR).toFixed(2); }
+function refreshUI(){
+  [...$('patGrid').children].forEach((b,i)=> b.classList.toggle('on', i===state.pattern));
+  [...$('modeSeg').children].forEach((b,i)=> b.classList.toggle('on', i===state.mode));
+  const unit = state.mode===1 ? 'px' : 'm';
+  $('lblSpacing').textContent = `espaçamento (${unit})`;
+  $('lblLw').textContent = `espessura (${unit})`;
+  sliders.forEach(([id,out,fmt])=>{ $(id).value = state[id]; $(out).textContent = fmt(state[id]); });
+  $('baseColor').value = state.baseColor; $('patColor').value = state.patColor; $('outColor').value = state.outColor;
+  $('mask').checked = state.mask; $('grat').checked = state.grat; $('tiles').checked = state.tiles;
+  syncZoomSlider();
+}
+
+/* ---------------- Export ---------------- */
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.style.opacity=1; setTimeout(()=>t.style.opacity=0, 1600); }
+function exportPNG(){
+  render();
+  const out = document.createElement('canvas'); out.width=W; out.height=H;
+  const c = out.getContext('2d');
+  c.fillStyle = '#0C1114'; c.fillRect(0,0,W,H);
+  c.drawImage(glCanvas,0,0); c.drawImage(ovCanvas,0,0);
+  const a = document.createElement('a');
+  a.download = `pattern-${PATTERNS[state.pattern]}-${MODES[state.mode]}.png`;
+  a.href = out.toDataURL('image/png'); a.click();
+  toast('PNG exportado');
+}
+function copyJSON(){
+  const j = {
+    id: `${PATTERNS[state.pattern].toLowerCase()}-ref`,
+    pattern: { type: PATTERNS[state.pattern], scaleMode: MODES[state.mode],
+      spacing: state.spacing, spacingUnit: state.mode===1?'pixels':'meters',
+      lineWidth: state.lw, rotation: state.rot,
+      targetPixelSpacing: state.targetPx, minPixelSpacing: state.minPx, maxPixelSpacing: state.maxPx },
+    appearance: { baseColor: state.baseColor, baseOpacity: state.baseA,
+      patternColor: state.patColor, patternOpacity: state.patA,
+      outlineColor: state.outColor, outlineWidth: state.outW, outlineDash: state.dash ? [state.dash, state.dash*0.6] : [0,0] },
+    referenceView: { pxPerMeter: +(state.ppm/DPR).toFixed(3) }
+  };
+  const txt = JSON.stringify(j, null, 2);
+  (navigator.clipboard?.writeText(txt) || Promise.reject()).then(()=>toast('JSON copiado'))
+    .catch(()=>{ const t=document.createElement('textarea'); t.value=txt; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); toast('JSON copiado'); });
+}
+
+/* ---------------- Boot ---------------- */
+initGL(); buildButtons(); bindUI(); refreshUI();
+new ResizeObserver(resize).observe(viewport);
+resize();
+</script>
+</body>
+</html>
