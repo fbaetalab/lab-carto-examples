@@ -1,21 +1,61 @@
 # Cartographic Pattern Lab
 
-Playground de referência para o sistema de preenchimentos cartográficos e demarcação 3D do digital twin (Unity 6.3 LTS / HDRP). Serve como **implementação de referência executável**: o GLSL daqui porta 1:1 para o HLSL da spec (`fract`→`frac`, `mix`→`lerp`).
+Playground de referência para o sistema de preenchimentos cartográficos e demarcação 3D do digital twin (Unity 6.3 LTS / HDRP). Serve como implementação de referência executável: o GLSL dos padrões porta para o HLSL da spec (`fract`→`frac`, `mix`→`lerp`).
 
-- **`index.html`** — playground 3D (Three.js r128, arquivo único): terreno costeiro com curvas de nível e batimetria, 9 padrões procedurais, 3 modos de escala (Metros / Px por metro-pirâmide / Pixels), demarcação 3D (drape, paredes animadas ×4 estilos, volumes, distribuição), sombras do sol (shadow map manual + PCF), SSAO, bloom seletivo, ACES, FXAA.
-- **`lab-2d.html`** — versão 2D original (validação rápida de padrões).
-- **`SPEC.md`** — spec completa para implementação em Unity, incluindo as lições empíricas do playground (§9.4 LOD hierárquico global/temporal; §15 representações 3D).
+No ar em **https://fbaetalab.github.io/lab-carto-examples/** — versão 2D de validação em `/lab-2d.html`.
 
-## Uso
-No ar em **https://fbaetalab.github.io/lab-carto-examples/** (raiz = `index.html`; a versão 2D fica em `/lab-2d.html`). Localmente, qualquer servidor estático serve — `file://` também funciona, exceto upload de símbolo em alguns browsers.
+## Stack
 
-Publicação: GitHub Pages servindo `main` na raiz (Settings → Pages → *Deploy from a branch*). Publicar é dar push em `main` — sem build step, sem npm.
+React 19 + React Three Fiber 9 + three 0.185, empacotado com Vite.
 
-Exportar referências: **PNG** (imagem calibrada) + **Copiar JSON** (parâmetros no schema da spec, incluindo `representation3d`).
+```
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # → dist/
+```
 
-## Decisões de design que não devem regredir
+## Divisão fundamental
+
+O ambiente é **fotorrealista**; os overlays cartográficos são **holográficos** de propósito. É a divisão que um digital twin faz: cenário fisicamente plausível, dado sintético legível por cima. Os overlays não recebem iluminação nem sombra — se recebessem, a leitura da demarcação mudaria com a hora do dia.
+
+| Ambiente (PBR) | Overlays (unlit) |
+| --- | --- |
+| terreno, edifícios, água, céu | plano, drape, paredes, volume, distribuição, borda |
+| `MeshStandardMaterial` via `three-custom-shader-material` | `ShaderMaterial` cru |
+| recebe IBL, sombra e fog | alfa puro, sem sombra |
+
+## Estrutura
+
+```
+src/
+  shaders/      patterns.js (biblioteca de padrões) · surfaces.js (PBR) · demarcation.js (overlays)
+  scene/        SkyEnvironment · Terrain · Buildings · Ocean · Demarcation · Rig · Scene
+  render/       uniforms · materials · FrameDriver · Post · readouts
+  ui/           Header · Panel · controls · PatternGallery · Presets
+  lib/          geometry · terrain · lod · textures · procTextures · exporters · color
+  config.js     constantes do domínio · presets.js
+```
+
+`FrameDriver` é o único lugar que escreve nos uniforms por frame. O estado do React reage a mudanças de **controle**, nunca ao relógio — LOD e readouts não passam por `setState`.
+
+## Iluminação
+
+Céu Preetham capturado uma vez por mudança de sol, servindo três papéis: skybox ancorado na câmera, fonte de IBL via PMREM, e referência para cor/intensidade da luz direcional. O IBL é o que separa PBR crível de sombra chapada.
+
+Pós-processamento pela stack pmndrs: N8AO, bloom por limiar de luminância, ACES e SMAA.
+
+## Decisões que não devem regredir
+
 1. Fase dos padrões ancorada em coordenadas de mundo (nunca UV por polígono/tile).
 2. Modo Px/metro = pirâmide de níveis **global e temporal** (nível por frame com histerese; transição ~0,3 s uniforme) — nunca por fragmento, nunca crossfade de dois padrões completos (causa duplicidade).
-3. Overlays holográficos (paredes/volumes/planos) não projetam nem recebem sombra.
+3. Overlays holográficos não projetam nem recebem sombra.
 4. Bloom só por limiar de luminância: brilho onde há semântica.
-5. Fog manual em todo shader custom de superfície.
+5. O plano e o drape compartilham o **mesmo objeto de uniforms** — se divergirem, o padrão sai diferente nas duas representações.
+
+## Exportar
+
+**PNG** (imagem calibrada) e **Copiar JSON** (parâmetros no schema da spec, incluindo `representation3d`). O JSON é a saída que atravessa a fronteira para a Unity.
+
+## Deploy
+
+GitHub Actions (`.github/workflows/deploy.yml`) roda `npm ci && npm run build` e publica `dist/` a cada push em `main`. Em Settings → Pages, a fonte precisa estar em **GitHub Actions**.

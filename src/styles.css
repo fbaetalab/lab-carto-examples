@@ -1,0 +1,98 @@
+:root{
+  --bg:#0C1114; --panel:#11181D; --panel2:#161F25; --line:#233038;
+  --tx:#C7D3D9; --tx-dim:#6E8089; --accent:#45D6C4; --accent-dim:#1E4A45;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Consolas,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{background:var(--bg);color:var(--tx);font-family:var(--mono);font-size:11px;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%}
+header{display:flex;align-items:center;gap:16px;padding:9px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:11px;letter-spacing:.18em;font-weight:600}
+header h1 span{color:var(--accent)}
+#readouts{display:flex;gap:16px;margin-left:auto}
+.ro{display:flex;flex-direction:column;align-items:flex-end}
+.ro b{color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+.ro i{font-style:normal;color:var(--tx-dim);font-size:9px;letter-spacing:.08em}
+header button{background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;padding:5px 11px;cursor:pointer}
+header button:hover{border-color:var(--accent);color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+main{display:flex;flex:1;min-height:0}
+#viewport{position:relative;flex:1;min-width:0;cursor:grab;touch-action:none}
+#viewport.dragging{cursor:grabbing}
+#viewport canvas{display:block}
+#hint{position:absolute;left:12px;top:10px;color:var(--tx-dim);font-size:10px;pointer-events:none;letter-spacing:.05em}
+#toast{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--accent);padding:6px 14px;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.on{opacity:1}
+
+aside{width:336px;border-left:1px solid var(--line);background:var(--panel);overflow-y:auto}
+.s{padding:10px 12px;border-bottom:1px solid var(--line)}
+.s h2, .s summary{font-size:9px;letter-spacing:.2em;color:var(--tx-dim);font-weight:600;margin-bottom:8px}
+details.s summary{cursor:pointer;margin-bottom:0;list-style:none;display:flex;align-items:center;gap:6px}
+details.s summary::before{content:'▸';color:var(--tx-dim);font-size:9px;transition:transform .12s}
+details.s[open] summary::before{transform:rotate(90deg)}
+details.s[open] summary{margin-bottom:8px}
+
+/* galeria de padrões */
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pcell{background:var(--panel2);border:1px solid var(--line);padding:4px 2px 3px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+.pcell:hover{border-color:var(--tx-dim)}
+.pcell.on{border-color:var(--accent);background:var(--accent-dim)}
+.pcell canvas{display:block}
+.pcell i{font-style:normal;font-size:9px;color:var(--tx-dim)}
+.pcell.on i{color:var(--accent)}
+
+/* presets em chips */
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chip{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:10px;padding:6px 8px;cursor:pointer;text-align:left}
+.chip:hover{border-color:var(--accent)}
+.chip .dot{width:14px;height:14px;border-radius:3px;flex:none}
+
+/* modos */
+.seg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.seg3 button{background:var(--panel2);border:1px solid var(--line);color:var(--tx-dim);font:inherit;font-size:10px;padding:6px 2px;cursor:pointer}
+.seg3 button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.caption{color:var(--tx-dim);font-size:9.5px;margin:7px 1px 9px;line-height:1.45}
+
+/* linhas de controle */
+.row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.row label{flex:0 0 92px;color:var(--tx-dim)}
+.row output{flex:0 0 52px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;accent-color:var(--accent);height:13px}
+input[type=checkbox]{accent-color:var(--accent)}
+.chk{display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;color:var(--tx)}
+.num{width:48px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:10px;padding:4px 5px;text-align:right}
+input[type=file]{width:100%;color:var(--tx-dim);font:inherit;font-size:10px}
+input[type=file]::file-selector-button{background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;padding:4px 9px;cursor:pointer;margin-right:8px}
+
+/* linha de cor estilo Figma: swatch + hex + % */
+.crow{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.crow label{flex:0 0 92px;color:var(--tx-dim)}
+.sw{position:relative;width:26px;height:24px;border:1px solid var(--line);flex:none;border-radius:3px}
+.sw input[type=color]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.hex{width:66px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:10px;padding:4px 6px}
+.pct{width:44px;background:var(--panel2);border:1px solid var(--line);color:var(--tx);font:inherit;font-size:10px;padding:4px 4px;text-align:right}
+.unit{color:var(--tx-dim);font-size:9px}
+#tabbar{display:none}
+@media (max-width:840px){
+  main{flex-direction:column}
+  header{flex-wrap:wrap;row-gap:6px}
+  #readouts .ro:nth-child(2), #readouts .ro:nth-child(4){display:none}
+  aside{width:100%;max-height:48%;border-left:none;border-top:1px solid var(--line);display:flex;flex-direction:column}
+  #tabbar{display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2;flex:none}
+  #tabbar button{flex:1;background:none;border:none;border-bottom:2px solid transparent;color:var(--tx-dim);font:inherit;font-size:10px;padding:10px 2px;cursor:pointer}
+  #tabbar button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  aside .s{display:none}
+  aside.tPresets #sPresets, aside.tPattern #sPattern, aside.tScale #sScale, aside.tColors #sColors, aside.t3D #s3D{display:block}
+  aside.tMore #dSym, aside.tMore #dVis, aside.tMore #dScene{display:block}
+}
+@media (pointer:coarse){
+  body{font-size:12px}
+  input[type=range]{height:26px}
+  .pcell{padding:7px 2px 6px}
+  .chip{padding:10px 8px;font-size:11px}
+  .seg3 button{padding:10px 2px;font-size:11px}
+  header button{padding:8px 12px}
+  .num,.hex,.pct{padding:7px 5px}
+  .sw{width:30px;height:28px}
+}

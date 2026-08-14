@@ -1,0 +1,27 @@
+{
+  "name": "lab-carto-examples",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Cartographic Pattern Lab — playground de referência (React Three Fiber) + spec Unity",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "@react-three/postprocessing": "^3.0.5",
+    "postprocessing": "^6.39.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "three": "^0.185.1",
+    "three-custom-shader-material": "^6.4.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.5",
+    "vite": "^8.2.1"
+  }
+}
