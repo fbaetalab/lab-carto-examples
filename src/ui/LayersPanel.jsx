@@ -38,10 +38,18 @@ export default function LayersPanel() {
               <b>{l.name}</b>
               <i>{l.code}</i>
             </span>
-            <span className="parts" title="preenchimento · borda · volume">
-              <span className={l.fill.on ? 'act' : ''} />
-              <span className={l.stroke.on ? 'act' : ''} />
-              <span className={l.volume.on ? 'act' : ''} />
+            {/* Os pontinhos resumem quais componentes estão ligados. Linha e
+                ponto são primitivas de componente único, então mostram um só. */}
+            <span className="parts" title={l.kind === 'polygon' ? 'preenchimento · borda · volume' : l.kind}>
+              {l.kind === 'polygon' ? (
+                <>
+                  <span className={l.fill.on ? 'act' : ''} />
+                  <span className={l.stroke.on ? 'act' : ''} />
+                  <span className={l.volume.on ? 'act' : ''} />
+                </>
+              ) : (
+                <span className={l[l.kind].on ? 'act' : ''} />
+              )}
             </span>
           </div>
         ))}

@@ -71,3 +71,26 @@ export const DEFAULT_STATE = {
   planeY: 0.5, wallH: 26, volBase: -16, volTop: 2, animOn: true, animSpeed: 1, wallStyle: 0, volAnim: false,
   contours: true, sea: true,
 };
+
+/* Estilos de linha — feição LINEAR, não borda de polígono. O traço é medido em
+   metros de mundo, então o padrão é físico e não muda com o zoom. */
+export const LINE_STYLES = [
+  { id: 0, label: 'Contínua' },
+  { id: 1, label: 'Tracejada' },
+  { id: 2, label: 'Pontilhada' },
+  { id: 3, label: 'Traço-ponto' },
+  { id: 4, label: 'Duas linhas' },
+  { id: 5, label: 'Linha + glow' },
+];
+export const LINE_STYLES_EN = ['Solid', 'Dashed', 'Dotted', 'DashDot', 'Double', 'Glow'];
+
+/* Símbolos pontuais. Desenhados por SDF, com tamanho em PIXELS: uma boia não
+   fica maior porque a câmera aproximou. */
+export const SYMBOL_KINDS = [
+  { id: 0, label: 'Marcador' },
+  { id: 1, label: 'Ícone func.' },
+  { id: 2, label: 'Alerta' },
+  { id: 3, label: 'Sensor' },
+  { id: 4, label: 'Atracação' },
+];
+export const SYMBOL_KINDS_EN = ['Marker', 'FunctionalIcon', 'Alert', 'Sensor', 'Mooring'];

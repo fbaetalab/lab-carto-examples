@@ -109,11 +109,17 @@ export function drapeGeometry(geo, heightAt, maxEdge = 6, maxTris = 120000) {
   return g;
 }
 
-export function buildRibbon(ring, widthM, y) {
-  const n = ring.length, pos = [], distA = [], idx = [];
+export function buildRibbon(ring, widthM, y, closed = true) {
+  const n = ring.length, pos = [], distA = [], crossA = [], idx = [];
+  const last = closed ? n : n - 1;
   let acc = 0;
-  for (let i = 0; i <= n; i++) {
-    const p = ring[i % n], pPrev = ring[(i - 1 + n) % n], pNext = ring[(i + 1) % n];
+  for (let i = 0; i <= last; i++) {
+    const p = ring[i % n];
+    /* Numa polilinha ABERTA as pontas não têm vizinho para o outro lado — a
+       normal da junta degenera. Repetir o próprio ponto faz a extremidade usar
+       a direção do único segmento existente, que é o corte reto (butt cap). */
+    const pPrev = closed ? ring[(i - 1 + n) % n] : ring[Math.max(i - 1, 0)];
+    const pNext = closed ? ring[(i + 1) % n] : ring[Math.min(i + 1, n - 1)];
     const d0 = norm2(sub2(p, pPrev)), d1 = norm2(sub2(pNext, p));
     const n0 = [-d0[1], d0[0]], n1 = [-d1[1], d1[0]];
     const m = norm2([n0[0] + n1[0], n0[1] + n1[1]]);
@@ -126,11 +132,13 @@ export function buildRibbon(ring, widthM, y) {
     const yB = typeof y === 'function' ? y(p[0] - m[0] * hw, p[1] - m[1] * hw) : y;
     pos.push(p[0] + m[0] * hw, yA, p[1] + m[1] * hw, p[0] - m[0] * hw, yB, p[1] - m[1] * hw);
     distA.push(acc, acc);
-    if (i < n) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
+    crossA.push(1, -1);            /* posição transversal: linha dupla e glow */
+    if (i < last) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('dist', new THREE.Float32BufferAttribute(distA, 1));
+  g.setAttribute('cross', new THREE.Float32BufferAttribute(crossA, 1));
   g.setIndex(idx);
   return g;
 }

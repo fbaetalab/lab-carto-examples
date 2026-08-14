@@ -42,6 +42,28 @@ export const GEOMETRIES = {
   limite: g('Limite administrativo', [[-330, -400], [700, -400], [700, 400], [-330, 400]]),
 };
 
+/* Polilinhas ABERTAS — feição linear de verdade, com comprimento e sem área. */
+export const LINES = {
+  eixoCanal: { label: 'Eixo do canal', pts: [[298, -400], [312, -200], [330, 0], [352, 200], [372, 400]] },
+  isobata10: { label: 'Isóbata −10 m', pts: [[210, -400], [232, -230], [246, -60], [258, 110], [276, 290], [292, 400]] },
+  isobata20: { label: 'Isóbata −20 m', pts: [[420, -400], [438, -210], [452, -20], [470, 170], [492, 400]] },
+  duto: { label: 'Duto submarino', pts: [[150, 120], [260, 150], [380, 132], [500, 96]] },
+};
+
+/* Pontos — sinalização náutica e estações. */
+export const POINTS = {
+  balizas: {
+    label: 'Sinalização',
+    items: [
+      { at: [252, -250], kind: 0, label: 'Baliza lateral verde 3' },
+      { at: [372, -120], kind: 0, label: 'Baliza lateral vermelha 2' },
+      { at: [268, 190], kind: 2, label: 'Perigo isolado' },
+      { at: [430, 60], kind: 3, label: 'Estação maregráfica' },
+      { at: [176, -150], kind: 4, label: 'Ponto de atracação' },
+    ],
+  },
+};
+
 export const VOLUME_KINDS = [
   { id: 'walls', label: 'Paredes', hint: 'perímetro legível de longe' },
   { id: 'prism', label: 'Prisma', hint: 'ocupa faixa de cota' },
@@ -81,11 +103,39 @@ export const defaultVolume = () => ({
 
 export const defaultVis = () => ({ on: false, minZ: 12, maxZ: 22, fadeR: 1 });
 
+/* Estilo da primitiva LINHA. Largura em metros, como a borda — feição
+   cartográfica linear tem largura física, não de tela. */
+export const defaultLine = () => ({
+  on: true, style: 1,
+  color: '#7FB8E8', opacity: 1,
+  width: 3, dash: 18, gap: 12,
+  surface: 'drape', elevation: 0.6,
+});
+
+/* Estilo da primitiva PONTO. Tamanho em PIXELS. */
+export const defaultPoint = () => ({
+  on: true, kind: 0, size: 22,
+  color: '#8FE0BF', opacity: 1,
+  labels: true,
+});
+
 const layer = (id, name, code, geometry, fill, stroke, volume) => ({
-  id, name, code, geometry, visible: true,
+  id, name, code, kind: 'polygon', geometry, visible: true,
   fill: { ...defaultFill(), ...fill },
   stroke: { ...defaultStroke(), ...stroke },
   volume: { ...defaultVolume(), ...volume },
+  vis: defaultVis(),
+});
+
+const lineLayer = (id, name, code, geometry, line) => ({
+  id, name, code, kind: 'line', geometry, visible: true,
+  line: { ...defaultLine(), ...line },
+  vis: defaultVis(),
+});
+
+const pointLayer = (id, name, code, geometry, point) => ({
+  id, name, code, kind: 'point', geometry, visible: true,
+  point: { ...defaultPoint(), ...point },
   vis: defaultVis(),
 });
 
@@ -121,10 +171,22 @@ export const INITIAL_LAYERS = [
     { pattern: 0, mode: 0, surface: 'plane', elevation: 28, opacity: 0, patternOpacity: 0 },
     { color: '#D4D4D8', width: 2, dash: 12, casingWidth: 1.2 },
     { on: false }),
+
+  lineLayer('eixo', 'Eixo do canal', 'EX-07', 'eixoCanal',
+    { style: 3, color: '#9DC7EA', width: 2.5, dash: 26, gap: 14 }),
+  lineLayer('iso10', 'Isóbata −10 m', 'IS-08', 'isobata10',
+    { style: 0, color: '#4E8FB8', width: 1.6, opacity: 0.75 }),
+  lineLayer('duto', 'Duto submarino', 'DT-09', 'duto',
+    { style: 5, color: '#F59E0B', width: 4 }),
+
+  pointLayer('sinais', 'Sinalização náutica', 'SN-10', 'balizas',
+    { kind: 0, size: 22, color: '#8FE0BF' }),
 ];
 
 /* Cor representativa da camada na lista: a mais "presente" dos três. */
 export function layerSwatch(l) {
+  if (l.kind === 'line') return l.line.color;
+  if (l.kind === 'point') return l.point.color;
   if (l.fill.on && l.fill.opacity > 0.02) return l.fill.color;
   if (l.stroke.on) return l.stroke.color;
   if (l.volume.on) return l.volume.color;

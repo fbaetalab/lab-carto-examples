@@ -28,5 +28,17 @@ Zoom contínuo 50 m↔50 km no modo Px/metro sem duplicidade/moiré/pop; polígo
 ## Deploy
 GitHub Actions a cada push em `main` (`.github/workflows/deploy.yml`). Settings → Pages com fonte em **GitHub Actions**.
 
+## Simbologia náutica (IALA Região B · IEC 62288 · IHO S-52/S-57)
+
+Regras normativas, não preferências. Ver o companion de simbologia do produto.
+
+- **Brasil é Região B: porto = VERDE, boreste = VERMELHO.** É o inverso da Europa. Trocar isso inverte o significado da sinalização.
+- Forma é canônica junto com a cor: **cilíndrica ("can") para porto, cônica ("nun") para boreste**. Numeração ímpar a bombordo, par a boreste.
+- Cardeais são iguais nas duas regiões. Topmark é sempre dois cones pretos; o que muda é a orientação (N para cima, S para baixo, E bases juntas, O pontas juntas) e a faixa preto/amarelo.
+- Perigo isolado: corpo preto com faixa vermelha, topmark de **duas esferas pretas**. Marca especial: amarela, topmark X. Águas seguras: listras vermelho/branco verticais, topmark esfera.
+- **A cor da boia é informação primária, não decoração.** Ela é a única exceção à paleta monocromática do Twin — em versão dessaturada, e não pode vazar para nenhum outro lugar do produto.
+- Alvo AIS em `Dangerous` usa **vermelho cintilante por exigência do IMO Performance Standard**. É a segunda e última exceção ao "sem vermelho".
+- AtoN **virtual** (sem existência física) renderiza **tracejado**, sempre.
+
 ## Vocabulário do domínio
 Berços de atracação, zonas de fundeio, canal de navegação, curvas de nível terrestres e batimétricas — os presets mapeiam esses conceitos e devem continuar mapeando.

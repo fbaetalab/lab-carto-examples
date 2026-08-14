@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { PATTERNS, MODES, MODE_ORDER, ARRANGEMENTS, CELLULAR_PATTERNS, WALL_STYLES, SHAPE_RANGE_M } from '../config.js';
+import { PATTERNS, MODES, MODE_ORDER, ARRANGEMENTS, CELLULAR_PATTERNS, WALL_STYLES, SHAPE_RANGE_M, LINE_STYLES, SYMBOL_KINDS } from '../config.js';
 import { SURFACES, VOLUME_KINDS } from '../layers.js';
 import { drawThumb } from '../lib/thumbs.js';
 import { useStore, useSelected } from '../store.js';
@@ -44,6 +44,12 @@ export default function Editor() {
   const setComponent = useStore((s) => s.setComponent);
 
   if (!layer) return null;
+
+  /* Linha e ponto são primitivas próprias: não têm preenchimento nem volume,
+     então não faz sentido oferecer as abas de polígono. */
+  if (layer.kind === 'line') return <LineEditor layer={layer} />;
+  if (layer.kind === 'point') return <PointEditor layer={layer} />;
+
   const { fill, stroke, volume } = layer;
   const unit = MODES[fill.mode].unit;
   const isSolid = fill.pattern === 0;
@@ -219,6 +225,90 @@ export default function Editor() {
             )}
           </>
         )}
+      </div>
+    </>
+  );
+}
+
+
+function PaneHead({ layer, kicker }) {
+  return (
+    <div className="pane-head">
+      <span className="kicker">{layer.name}</span>
+      <span className="count">{kicker}</span>
+    </div>
+  );
+}
+
+function LineEditor({ layer }) {
+  const l = layer.line;
+  const dashed = l.style === 1 || l.style === 2 || l.style === 3;
+  return (
+    <>
+      <PaneHead layer={layer} kicker={`${layer.code} · LINHA`} />
+      <div className="scroll">
+        <div className="sect">
+          <Toggle c="line" k="on" label="Linha" hint="feição linear: comprimento sem área" />
+          <Choice
+            c="line" k="style" label="Estilo" columns="repeat(2,1fr)"
+            options={LINE_STYLES.map((s) => ({ value: s.id, label: s.label }))}
+          />
+        </div>
+        <div className="sect">
+          <div className="kicker">Traço</div>
+          <ColorField c="line" colorKey="color" alphaKey="opacity" label="Cor e intensidade" />
+          <Slider c="line" k="width" label="Largura" min={0.5} max={20} step={0.5} fmt={(v) => v.toFixed(1)} unit=" m" />
+          {dashed && (
+            <>
+              <Slider c="line" k="dash" label="Traço" min={2} max={80} step={1} fmt={(v) => v.toFixed(0)} unit=" m" />
+              <Slider c="line" k="gap" label="Vão" min={2} max={80} step={1} fmt={(v) => v.toFixed(0)} unit=" m" />
+            </>
+          )}
+          <p className="field-hint">
+            Traço e vão em METROS de mundo: o padrão é físico e não muda com o zoom,
+            que é o comportamento correto para feição linear.
+          </p>
+        </div>
+        <div className="sect">
+          <div className="kicker">Superfície</div>
+          <Choice
+            c="line" k="surface" columns="repeat(2,1fr)"
+            options={[{ id: 'drape', label: 'Drapeada' }, { id: 'plane', label: 'Cota fixa' }]}
+          />
+          <Slider c="line" k="elevation" label="Altura sobre a base" min={0} max={40} step={0.5} fmt={(v) => v.toFixed(1)} unit=" m" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PointEditor({ layer }) {
+  return (
+    <>
+      <PaneHead layer={layer} kicker={`${layer.code} · PONTO`} />
+      <div className="scroll">
+        <div className="sect">
+          <Toggle c="point" k="on" label="Símbolos" hint="feição sem extensão" />
+          <Choice
+            c="point" k="kind" label="Glifo padrão" columns="repeat(2,1fr)"
+            options={SYMBOL_KINDS.map((s) => ({ value: s.id, label: s.label }))}
+          />
+          <p className="field-hint">
+            Cada ponto pode sobrescrever o glifo. Os símbolos são desenhados por SDF,
+            então ficam nítidos em qualquer escala sem custar um atlas.
+          </p>
+        </div>
+        <div className="sect">
+          <div className="kicker">Aparência</div>
+          <ColorField c="point" colorKey="color" alphaKey="opacity" label="Cor e intensidade" />
+          <Slider c="point" k="size" label="Tamanho" min={8} max={64} step={1} fmt={(v) => v.toFixed(0)} unit=" px" />
+          <p className="field-hint">
+            Tamanho em PIXELS de tela: uma boia não fica maior porque a câmera aproximou.
+          </p>
+        </div>
+        <div className="sect">
+          <Toggle c="point" k="labels" label="Rótulos" hint="nome com linha-guia" />
+        </div>
       </div>
     </>
   );

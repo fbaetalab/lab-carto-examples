@@ -1,9 +1,38 @@
-import { PATTERNS, MODES, WALL_STYLES_EN, ARRANGEMENTS_EN, CELLULAR_PATTERNS } from '../config.js';
+import { PATTERNS, MODES, WALL_STYLES_EN, ARRANGEMENTS_EN, CELLULAR_PATTERNS, LINE_STYLES_EN, SYMBOL_KINDS_EN } from '../config.js';
 
 /* A spec é o produto desta ferramenta. O que atravessa a fronteira para a
    Unity é este objeto, não um screenshot — daí a estrutura espelhar os três
    componentes da camada em vez de achatar tudo num nível só. */
 export function layerSpec(l) {
+  /* Linha e ponto são primitivas de componente único — a spec reflete isso em
+     vez de emitir campos de polígono vazios. */
+  if (l.kind === 'line') {
+    return {
+      id: l.id, name: l.name, code: l.code, kind: 'line',
+      line: l.line.on ? {
+        style: LINE_STYLES_EN[l.line.style],
+        color: l.line.color, opacity: l.line.opacity,
+        widthMeters: l.line.width,
+        dashMeters: l.line.style === 0 ? null : [l.line.dash, l.line.gap],
+        surface: l.line.surface,
+        elevationMeters: l.line.elevation,
+      } : null,
+      visibility: l.vis.on ? { minZoom: l.vis.minZ, maxZoom: l.vis.maxZ, fadeRange: l.vis.fadeR } : null,
+    };
+  }
+  if (l.kind === 'point') {
+    return {
+      id: l.id, name: l.name, code: l.code, kind: 'point',
+      point: l.point.on ? {
+        symbol: SYMBOL_KINDS_EN[l.point.kind],
+        color: l.point.color, opacity: l.point.opacity,
+        sizePixels: l.point.size,
+        labels: l.point.labels,
+      } : null,
+      visibility: l.vis.on ? { minZoom: l.vis.minZ, maxZoom: l.vis.maxZ, fadeRange: l.vis.fadeR } : null,
+    };
+  }
+
   const f = l.fill, s = l.stroke, v = l.volume;
   const cellular = CELLULAR_PATTERNS.includes(f.pattern);
 
@@ -11,6 +40,7 @@ export function layerSpec(l) {
     id: l.id,
     name: l.name,
     code: l.code,
+    kind: 'polygon',
     fill: f.on ? {
       surface: f.surface,
       elevationMeters: f.surface === 'plane' ? f.elevation : null,

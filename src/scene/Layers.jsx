@@ -1,12 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { GEOMETRIES } from '../layers.js';
+import { GEOMETRIES, LINES, POINTS } from '../layers.js';
 import { shapeToXZ, buildCurtain, buildRibbon, drapeGeometry, subdivRing, pip } from '../lib/geometry.js';
 import { terrainH } from '../lib/terrain.js';
 import { buildMaskTexture } from '../lib/textures.js';
 import { makePatternMaterial, rgba, fillMaterials } from '../render/patternMaterial.js';
 import { WALL_VS, WALL_FS, VOL_FS, OUT_VS, OUT_FS } from '../shaders/demarcation.js';
+import { LINE_VS, LINE_FS } from '../shaders/lines.js';
+import { POINT_VS, POINT_FS } from '../shaders/points.js';
+import { Html } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import { useStore } from '../store.js';
 
 /* Renderiza TODAS as camadas visíveis, cada uma com os seus três componentes
@@ -22,12 +26,114 @@ export default function Layers() {
 }
 
 function Layer({ layer }) {
+  if (layer.kind === 'line') return layer.line.on ? <LineLayer layer={layer} /> : null;
+  if (layer.kind === 'point') return layer.point.on ? <PointLayer layer={layer} /> : null;
+
   const geo = GEOMETRIES[layer.geometry];
   return (
     <>
       {layer.fill.on && <Fill layer={layer} geo={geo} />}
       {layer.stroke.on && <Stroke layer={layer} geo={geo} />}
       {layer.volume.on && <Volume layer={layer} geo={geo} />}
+    </>
+  );
+}
+
+/* ---------------- primitiva LINHA ---------------- */
+function LineLayer({ layer }) {
+  const l = layer.line;
+  const src = LINES[layer.geometry];
+  const draped = l.surface === 'drape';
+
+  const geometry = useMemo(() => {
+    /* Reamostra antes de gerar a fita: sem isso a linha corta reto entre
+       vértices distantes e não acompanha o relevo nem a curvatura. */
+    const pts = draped ? subdivRing(src.pts, 8).slice(0, -1) : src.pts;
+    const yAt = draped ? (x, z) => terrainH(x, z) + l.elevation : l.elevation;
+    return buildRibbon(pts, l.width, yAt, false);
+  }, [src, l.width, l.elevation, draped]);
+  useLayoutEffect(() => () => geometry.dispose(), [geometry]);
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: LINE_VS,
+    fragmentShader: LINE_FS,
+    uniforms: {
+      uColor: { value: new THREE.Color(l.color) },
+      uAlpha: { value: l.opacity },
+      uDash: { value: l.dash },
+      uGap: { value: l.gap },
+      uStyle: { value: l.style },
+    },
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  }), [l.color, l.opacity, l.dash, l.gap, l.style]);
+  useLayoutEffect(() => () => material.dispose(), [material]);
+
+  return <mesh geometry={geometry} material={material} renderOrder={5} castShadow={false} receiveShadow={false} />;
+}
+
+/* ---------------- primitiva PONTO ---------------- */
+function PointLayer({ layer }) {
+  const p = layer.point;
+  const src = POINTS[layer.geometry];
+  const { size } = useThree();
+  const ref = useRef();
+
+  const items = useMemo(
+    () => src.items.map((it) => ({ ...it, y: terrainH(it.at[0], it.at[1]) + 2 })),
+    [src],
+  );
+
+  const geometry = useMemo(() => {
+    const g = new THREE.InstancedBufferGeometry();
+    const base = new THREE.PlaneGeometry(1, 1);
+    g.index = base.index;
+    g.attributes.position = base.attributes.position;
+    g.attributes.uv = base.attributes.uv;
+    g.setAttribute('offset', new THREE.InstancedBufferAttribute(
+      new Float32Array(items.flatMap((it) => [it.at[0], it.y, it.at[1]])), 3));
+    g.setAttribute('kind', new THREE.InstancedBufferAttribute(
+      new Float32Array(items.map((it) => (it.kind ?? p.kind))), 1));
+    g.instanceCount = items.length;
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 2000);
+    return g;
+  }, [items, p.kind]);
+  useLayoutEffect(() => () => geometry.dispose(), [geometry]);
+
+  const material = useMemo(() => new THREE.ShaderMaterial({
+    vertexShader: POINT_VS,
+    fragmentShader: POINT_FS,
+    uniforms: {
+      uColor: { value: new THREE.Color(p.color) },
+      uAlpha: { value: p.opacity },
+      uSizePx: { value: p.size },
+      uViewport: { value: new THREE.Vector2(1, 1) },
+    },
+    transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
+  }), [p.color, p.opacity, p.size]);
+  useLayoutEffect(() => () => material.dispose(), [material]);
+
+  useFrame(({ viewport }) => {
+    const dpr = viewport.dpr || 1;
+    material.uniforms.uViewport.value.set(size.width * dpr, size.height * dpr);
+  });
+
+  return (
+    <>
+      <mesh ref={ref} geometry={geometry} material={material} renderOrder={6} frustumCulled={false} />
+      {/* Rótulo com linha-guia: o nome não fica em cima do símbolo, sai por um
+          filete curto. É a convenção de carta náutica e o que impede o texto de
+          cobrir a própria feição que nomeia. */}
+      {p.labels && items.map((it, i) => (
+        <Html key={i} position={[it.at[0], it.y, it.at[1]]} style={{ pointerEvents: 'none' }} zIndexRange={[10, 0]}>
+          <div style={{ display: 'flex', alignItems: 'center', transform: 'translate(0,-50%)' }}>
+            <span style={{ width: 22, height: 1, background: p.color, opacity: 0.7, flex: 'none' }} />
+            <span style={{
+              font: '500 10px/1.3 Inter, sans-serif', color: p.color,
+              whiteSpace: 'nowrap', letterSpacing: '.04em', paddingLeft: 6, textShadow: '0 1px 3px rgba(0,0,0,.9)',
+            }}>{it.label}</span>
+          </div>
+        </Html>
+      ))}
     </>
   );
 }
