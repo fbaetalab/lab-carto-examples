@@ -19,7 +19,6 @@ const BLOCKS = [
 ];
 
 export default function Buildings() {
-  const visible = useStore((s) => s.bld);
 
   const blocks = useMemo(() => BLOCKS.map(([x, z, w, h, d]) => ({
     key: `${x}:${z}`,
@@ -28,7 +27,7 @@ export default function Buildings() {
   })), []);
 
   return (
-    <group visible={visible}>
+    <group>
       {blocks.map((b) => (
         <mesh key={b.key} geometry={b.geometry} position={b.position} castShadow receiveShadow>
           <CustomShaderMaterial

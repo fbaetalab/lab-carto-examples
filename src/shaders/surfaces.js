@@ -49,10 +49,8 @@ void main(){
 export const TERRAIN_FS = `
 varying vec3 vW;
 varying vec3 vWN;
-` + PAT_LIB + SRGB + `
-/* uMaskT / uMaskMin / uMaskSize já vêm declarados na PAT_LIB — o shapeburst
-   também precisa deles, então a declaração mora lá para não duplicar. */
-uniform int   uDrape, uContours;
+` + SRGB + `
+uniform int uContours;
 
 float contourLine(float h, float itv, float w){
   float d  = abs(fract(h/itv + 0.5) - 0.5) * itv;
@@ -93,16 +91,6 @@ void main(){
     col = mix(col, sRGBToLinear(cc), minor*0.16 + major*0.34);
   }
 
-  if(uDrape == 1){
-    vec2 mu = (vW.xz - uMaskMin) / uMaskSize;
-    if(mu.x > 0.0 && mu.x < 1.0 && mu.y > 0.0 && mu.y < 1.0){
-      float m = texture2D(uMaskT, mu).r;
-      if(m > 0.003){
-        vec4 pc = evalPattern(vW.xz, gl_FragCoord.xy);
-        col = mix(col, sRGBToLinear(pc.rgb), pc.a * m);
-      }
-    }
-  }
 
   csm_DiffuseColor = vec4(col, 1.0);
   csm_Roughness    = clamp(rough, 0.04, 1.0);

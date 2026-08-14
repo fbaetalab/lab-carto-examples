@@ -48,6 +48,14 @@ export function makePatternMaterial(overrides = {}, mask) {
   return m;
 }
 
+/* Registro dos materiais de preenchimento em cena, por camada.
+
+   O FrameDriver precisa alcançá-los a cada frame para escrever o nível da
+   pirâmide — e cada camada tem a SUA pirâmide, porque o nível depende do
+   espaçamento-alvo dela. Um registro de módulo evita passar refs por três
+   níveis de componente só para isso. */
+export const fillMaterials = new Map();
+
 /* Converte "#RRGGBB" + alfa no vec4 que os shaders esperam. */
 export function rgba(hex, a) {
   return [

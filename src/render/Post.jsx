@@ -11,9 +11,9 @@ import { useStore } from '../store.js';
    global: brilho só onde há semântica — janelas acesas, fio de luz no topo das
    paredes, glint do sol na água. */
 export default function Post() {
-  const post = useStore((s) => s.post);
-  const ssao = useStore((s) => s.ssao);
-  const bloom = useStore((s) => s.bloom);
+  const post = useStore((s) => s.scene.post);
+  const ssao = useStore((s) => s.scene.ssao);
+  const bloom = useStore((s) => s.scene.bloom);
 
   if (!post) return null;
 

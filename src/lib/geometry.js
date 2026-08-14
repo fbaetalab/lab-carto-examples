@@ -61,6 +61,54 @@ export function buildCurtain(ring, topFn, baseFn) {
 /* Fita de borda com largura em METROS (não em pixels): a junta é estendida
    pelo inverso do cosseno do meio-ângulo, com teto para não explodir em
    vértices agudos. */
+/* Subdivide até nenhuma aresta passar de maxEdge, e então desloca em Y por
+   uma função de altura. É assim que o preenchimento DRAPEADO vira propriedade
+   da FEIÇÃO e não do terreno — o que permite N camadas drapeadas com padrões
+   diferentes ao mesmo tempo. Com a máscara no shader do terreno só uma seria
+   possível, porque o terreno é um só.
+
+   Subdividir em vez de recortar uma grade preserva a borda exata do polígono
+   (inclusive o furo): nada de serrilhado na divisa da zona, que é justamente
+   onde o olho vai. */
+export function drapeGeometry(geo, heightAt, maxEdge = 6, maxTris = 120000) {
+  let src = geo.index ? geo.toNonIndexed() : geo;
+  let pos = Array.from(src.attributes.position.array);
+
+  for (let pass = 0; pass < 8; pass++) {
+    const tris = pos.length / 9;
+    if (tris >= maxTris) break;
+    const out = [];
+    let split = false;
+    for (let t = 0; t < tris; t++) {
+      const o = t * 9;
+      const a = [pos[o], pos[o + 1], pos[o + 2]];
+      const b = [pos[o + 3], pos[o + 4], pos[o + 5]];
+      const c = [pos[o + 6], pos[o + 7], pos[o + 8]];
+      const e = Math.max(
+        Math.hypot(a[0] - b[0], a[2] - b[2]),
+        Math.hypot(b[0] - c[0], b[2] - c[2]),
+        Math.hypot(c[0] - a[0], c[2] - a[2]),
+      );
+      if (e <= maxEdge) { out.push(...a, ...b, ...c); continue; }
+      split = true;
+      const ab = [(a[0] + b[0]) / 2, 0, (a[2] + b[2]) / 2];
+      const bc = [(b[0] + c[0]) / 2, 0, (b[2] + c[2]) / 2];
+      const ca = [(c[0] + a[0]) / 2, 0, (c[2] + a[2]) / 2];
+      out.push(...a, ...ab, ...ca, ...ab, ...b, ...bc, ...ca, ...bc, ...c, ...ab, ...bc, ...ca);
+    }
+    pos = out;
+    if (!split) break;
+  }
+
+  for (let i = 0; i < pos.length; i += 3) pos[i + 1] = heightAt(pos[i], pos[i + 2]);
+
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  g.computeBoundingSphere();
+  return g;
+}
+
 export function buildRibbon(ring, widthM, y) {
   const n = ring.length, pos = [], distA = [], idx = [];
   let acc = 0;
@@ -72,7 +120,11 @@ export function buildRibbon(ring, widthM, y) {
     const scale = 1 / Math.max(0.34, m[0] * n1[0] + m[1] * n1[1]);
     if (i > 0) acc += len2(sub2(p, pPrev));
     const hw = widthM * 0.5 * scale;
-    pos.push(p[0] + m[0] * hw, y, p[1] + m[1] * hw, p[0] - m[0] * hw, y, p[1] - m[1] * hw);
+    /* y aceita número (cota fixa) ou função (acompanha o relevo), para a borda
+       poder seguir o mesmo regime do preenchimento da camada. */
+    const yA = typeof y === 'function' ? y(p[0] + m[0] * hw, p[1] + m[1] * hw) : y;
+    const yB = typeof y === 'function' ? y(p[0] - m[0] * hw, p[1] - m[1] * hw) : y;
+    pos.push(p[0] + m[0] * hw, yA, p[1] + m[1] * hw, p[0] - m[0] * hw, yB, p[1] - m[1] * hw);
     distA.push(acc, acc);
     if (i < n) { const b = i * 2; idx.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); }
   }

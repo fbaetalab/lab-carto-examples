@@ -23,8 +23,12 @@ export default function Terrain() {
     return g;
   }, []);
 
+  /* Recebe sombra, mas NÃO projeta: terreno projetando sobre si mesmo com
+     2048 texels cobrindo 1,4 km dá 0,68 m/texel contra uma malha de 6 m — o
+     resultado são manchas escuras grandes, não sombra. Quem projeta são os
+     edifícios. */
   return (
-    <mesh geometry={geometry} receiveShadow castShadow>
+    <mesh geometry={geometry} receiveShadow>
       <CustomShaderMaterial
         baseMaterial={THREE.MeshStandardMaterial}
         vertexShader={TERRAIN_VS}

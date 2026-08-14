@@ -36,9 +36,10 @@ export function replaceSymbolTexture(canvas) {
   sharedPat.uTex.value = symTex;
 }
 
-export const terrainUniforms = Object.assign({
-  uDrape: { value: 1 }, uContours: { value: 1 },
-}, sharedPat);
+/* O terreno só precisa saber das curvas de nível. O drape deixou de ser
+   propriedade dele quando virou malha da própria camada — o que é o certo:
+   com máscara única no shader do terreno, só UMA camada poderia drapear. */
+export const terrainUniforms = { uContours: { value: 1 } };
 
 /* Overlays holográficos: sem iluminação, alfa aditivo-ish, sem sombra. */
 export const wallUniforms = {

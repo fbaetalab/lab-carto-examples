@@ -16,9 +16,9 @@ import { useStore } from '../store.js';
    detecta queda de fps. */
 export default function Ocean({ reflectionSize = 512 }) {
   const { scene } = useThree();
-  const visible = useStore((s) => s.sea);
-  const sunAz = useStore((s) => s.sunAz);
-  const sunEl = useStore((s) => s.sunEl);
+  const visible = useStore((s) => s.scene.sea);
+  const sunAz = useStore((s) => s.scene.sun.az);
+  const sunEl = useStore((s) => s.scene.sun.el);
 
   const water = useMemo(() => {
     const geo = new THREE.PlaneGeometry(4000, 4000);

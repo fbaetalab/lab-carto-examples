@@ -1,46 +1,65 @@
 import { PATTERNS, MODES, WALL_STYLES_EN, ARRANGEMENTS_EN, CELLULAR_PATTERNS } from '../config.js';
 
-/* Serializa o estado no schema da spec. Esta é a saída que atravessa a
-   fronteira para a Unity — o playground existe para produzir isto. */
-export function buildJSON(s) {
+/* A spec é o produto desta ferramenta. O que atravessa a fronteira para a
+   Unity é este objeto, não um screenshot — daí a estrutura espelhar os três
+   componentes da camada em vez de achatar tudo num nível só. */
+export function layerSpec(l) {
+  const f = l.fill, s = l.stroke, v = l.volume;
+  const cellular = CELLULAR_PATTERNS.includes(f.pattern);
+
   return {
-    id: `${PATTERNS[s.pattern].toLowerCase()}-ref`,
-    pattern: {
-      type: PATTERNS[s.pattern],
-      scaleMode: MODES[s.mode].id,
-      spacing: s.spacing,
-      spacingUnit: s.mode === 0 ? 'meters' : 'pixels',
-      lineWidth: s.lw,
-      symbolSize: s.sym,
-      rotation: s.rot,
-      minPixelSpacing: s.minPx,
-      maxPixelSpacing: s.maxPx,
-      /* arranjo só existe em padrão celular; semente só em arranjo aleatório */
-      arrangement: CELLULAR_PATTERNS.includes(s.pattern) ? ARRANGEMENTS_EN[s.arrange] : null,
-      randomSeed: CELLULAR_PATTERNS.includes(s.pattern) && s.arrange === 2 ? s.seed : null,
-      brickOffsetRatio: s.pattern === 9 ? s.brickOff : null,
-      shapeburstWidthMeters: s.pattern === 10 ? s.shapeW : null,
-    },
-    appearance: {
-      fillColor: s.baseColor, fillOpacity: s.baseA,
-      patternColor: s.patColor, patternOpacity: s.patA, patternTintSymbol: s.tint,
-      outlineColor: s.outColor, outlineWidthMeters: s.outW,
-      outlineDashMeters: s.dash ? [s.dash, s.dash * 0.6] : [0, 0],
-      casingColor: s.casingW > 0 ? s.casingColor : null,
-      casingWidthMeters: s.casingW > 0 ? s.casingW : 0,
-    },
-    visibility: s.visOn ? { minZoom: s.minZ, maxZoom: s.maxZ, fadeRange: s.fadeR } : null,
-    representation3d: {
-      plane: s.repPlane ? { elevationMeters: s.planeY } : null,
-      drape: s.repDrape,
-      walls: s.repWalls
-        ? { topMeters: s.wallH, style: WALL_STYLES_EN[s.wallStyle], animated: s.animOn, speed: s.animSpeed }
-        : null,
-      volume: s.repVolume ? { baseMeters: s.volBase, topMeters: s.volTop, pulse: s.volAnim } : null,
-      scatter: s.repScatter,
-    },
+    id: l.id,
+    name: l.name,
+    code: l.code,
+    fill: f.on ? {
+      surface: f.surface,
+      elevationMeters: f.surface === 'plane' ? f.elevation : null,
+      pattern: {
+        type: PATTERNS[f.pattern],
+        scaleMode: MODES[f.mode].id,
+        spacing: f.spacing,
+        spacingUnit: f.mode === 0 ? 'meters' : 'pixels',
+        lineWidth: f.lw,
+        symbolSize: f.pattern === 8 ? f.sym : null,
+        rotation: f.rot,
+        arrangement: cellular ? ARRANGEMENTS_EN[f.arrange] : null,
+        randomSeed: cellular && f.arrange === 2 ? f.seed : null,
+        brickOffsetRatio: f.pattern === 9 ? f.brickOff : null,
+        shapeburstWidthMeters: f.pattern === 10 ? f.shapeW : null,
+        minPixelSpacing: f.mode === 2 ? f.minPx : null,
+        maxPixelSpacing: f.mode === 2 ? f.maxPx : null,
+      },
+      color: f.color,
+      opacity: f.opacity,
+      patternColor: f.pattern === 0 ? null : f.patternColor,
+      patternOpacity: f.pattern === 0 ? null : f.patternOpacity,
+    } : null,
+    stroke: s.on ? {
+      color: s.color,
+      widthMeters: s.width,
+      dashMeters: s.dash ? [s.dash, s.dash * 0.6] : [0, 0],
+      casingColor: s.casingWidth > 0 ? s.casingColor : null,
+      casingWidthMeters: s.casingWidth,
+    } : null,
+    volume: v.on ? {
+      kind: v.kind,
+      color: v.color,
+      opacity: v.opacity,
+      baseMeters: v.kind === 'walls' ? null : v.base,
+      topMeters: v.top,
+      wallStyle: v.kind === 'walls' ? WALL_STYLES_EN[v.wallStyle] : null,
+      animated: v.kind === 'walls' ? v.animate : null,
+      speed: v.kind === 'walls' && v.animate ? v.speed : null,
+      pulse: v.kind === 'prism' ? v.pulse : null,
+    } : null,
+    visibility: l.vis.on ? { minZoom: l.vis.minZ, maxZoom: l.vis.maxZ, fadeRange: l.vis.fadeR } : null,
   };
 }
+
+export const documentSpec = (layers) => ({
+  schema: 'labsecreto.cartography/1.1',
+  layers: layers.map(layerSpec),
+});
 
 export async function copyText(txt) {
   try {

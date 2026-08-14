@@ -30,9 +30,9 @@ export function sunVector(azDeg, elDeg) {
 
 export default function SkyEnvironment() {
   const { scene, gl } = useThree();
-  const sunAz = useStore((s) => s.sunAz);
-  const sunEl = useStore((s) => s.sunEl);
-  const shadows = useStore((s) => s.shadows);
+  const sunAz = useStore((s) => s.scene.sun.az);
+  const sunEl = useStore((s) => s.scene.sun.el);
+  const shadows = useStore((s) => s.scene.shadows);
   const lightRef = useRef();
 
   /* Plataforma de captura: céu pequeno numa cena isolada, dentro do frustum

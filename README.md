@@ -72,17 +72,22 @@ A borda aceita **casing** — segunda fita concêntrica por baixo — para conti
 
 GitHub Actions (`.github/workflows/deploy.yml`) roda `npm ci && npm run build` e publica `dist/` a cada push em `main`. Em Settings → Pages, a fonte precisa estar em **GitHub Actions**.
 
-## Cenários
+## Modelo
 
-O lab separa os dois eixos do problema, que antes estavam misturados num painel só:
+A unidade é a **camada** — *berço*, *fundeio*, *canal* — e cada uma tem **três componentes independentes**, cada um com cor própria:
 
-| Cenário | O que isola | Como |
+| Componente | O que é | Onde vive |
 | --- | --- | --- |
-| **Preenchimentos** | simbolização 2D de área | prancha de contato ortográfica, os 11 padrões lado a lado, sem terreno nem perspectiva |
-| **Representações 3D** | como a feição ocupa o espaço | padrão fixo, as 5 representações lado a lado na mesma cota |
-| **Livre** | tudo | o sandbox com todos os controles |
+| `fill` | preenchimento de área com padrão cartográfico | na superfície: drapeado no relevo ou em cota fixa |
+| `stroke` | borda com largura em metros, dash e casing | acompanha o regime do preenchimento |
+| `volume` | ocupação do espaço: paredes, prisma ou distribuição | entre cotas |
 
-A separação é o ponto: com padrão e representação variando juntos não dá para saber se a leitura mudou por causa da hachura ou da geometria.
+Tratar os três como um objeto só era o erro original: na prática se quer preenchimento discreto com borda forte, ou volume em outra cor para separar leitura de área de leitura de ocupação.
+
+O drape é **geometria da feição**, não propriedade do terreno — a malha do polígono é subdividida até 6 m e deslocada por `terrainH`. Com máscara única no shader do terreno só uma camada poderia drapear.
+
+A **spec fica visível e viva** no inspetor: é ela o produto desta ferramenta, não o screenshot.
+
 
 ## Chave de API
 
