@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { readoutEls } from '../render/readouts.js';
 import { buildJSON, copyText, downloadCanvasPNG } from '../lib/exporters.js';
-import { PATTERNS, MODES } from '../config.js';
+import { PATTERNS, MODES, SCENARIOS } from '../config.js';
 import { useStore } from '../store.js';
 
 /* Os quatro readouts são escritos pelo FrameDriver direto no DOM — por isso
@@ -22,6 +22,8 @@ function Readout({ id, label }) {
 
 export default function Header() {
   const showToast = useStore((s) => s.showToast);
+  const scenario = useStore((s) => s.scenario);
+  const setKey = useStore((s) => s.setKey);
 
   const exportPNG = () => {
     const canvas = document.querySelector('#viewport canvas');
@@ -38,8 +40,20 @@ export default function Header() {
 
   return (
     <header>
-      <h1>LAB DE PADRÕES <span>CARTOGRÁFICOS · 3D</span></h1>
-      <div id="readouts">
+      <h1>LAB <span>CARTOGRÁFICO</span></h1>
+      <nav id="scenarios">
+        {SCENARIOS.map((s) => (
+          <button
+            key={s.id}
+            className={s.id === scenario ? 'on' : ''}
+            title={s.hint}
+            onClick={() => setKey('scenario', s.id)}
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
+      <div id="readouts" style={scenario === 'catalog' ? { display: 'none' } : undefined}>
         <Readout id="z" label="ZOOM Z" />
         <Readout id="ppm" label="PX / METRO" />
         <Readout id="spacing" label="ESPAÇ. EFETIVO" />

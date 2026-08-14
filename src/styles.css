@@ -96,3 +96,12 @@ input[type=file]::file-selector-button{background:var(--panel2);border:1px solid
   .num,.hex,.pct{padding:7px 5px}
   .sw{width:30px;height:28px}
 }
+
+/* seletor de cenário no header */
+#scenarios{display:flex;gap:6px}
+#scenarios button{background:var(--panel2);border:1px solid var(--line);color:var(--tx-dim);font:inherit;font-size:10px;letter-spacing:.08em;padding:5px 11px;cursor:pointer}
+#scenarios button:hover{border-color:var(--tx-dim);color:var(--tx)}
+#scenarios button.on{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+@media (max-width:840px){
+  #scenarios button{padding:6px 8px;font-size:10px}
+}

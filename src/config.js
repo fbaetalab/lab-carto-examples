@@ -46,7 +46,16 @@ export const RINGS = [POLY_A_OUTER, POLY_A_HOLE, POLY_B];
 /* Retângulo de mundo coberto pela máscara top-down usada no drape. */
 export const MASK = { xmin: -340, zmin: -300, sx: 800, sz: 620 };
 
+/* Os dois eixos do problema são cenários separados de propósito: misturá-los
+   num painel só impede julgar qualquer um dos dois. */
+export const SCENARIOS = [
+  { id: 'catalog', label: 'Preenchimentos', hint: 'simbolização 2D de área' },
+  { id: 'reps', label: 'Representações 3D', hint: 'como a feição ocupa o espaço' },
+  { id: 'sandbox', label: 'Livre', hint: 'todos os controles' },
+];
+
 export const DEFAULT_STATE = {
+  scenario: 'catalog',
   pattern: 2, mode: 2,
   spacing: 24, lw: 1.6, sym: 16, rot: 45,
   baseColor: '#D64545', baseA: 0.25,

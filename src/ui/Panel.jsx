@@ -48,6 +48,10 @@ export default function Panel() {
   const isBrick = s.pattern === 9;
   const isShape = s.pattern === 10;
   const isCellular = CELLULAR_PATTERNS.includes(s.pattern);
+  /* Cada cenário expõe só os controles do SEU eixo. Mostrar tudo em todo lugar
+     foi o que embaralhou preenchimento com volume em primeiro lugar. */
+  const full = s.scenario === 'sandbox';
+  const isCatalog = s.scenario === 'catalog';
   /* Shapeburst não é periódico: rotação, espaçamento e espessura não o afetam. */
   const hasGrain = !isSolid && !isShape;
   const unit = MODES[s.mode].unit;
@@ -63,11 +67,32 @@ export default function Panel() {
         ))}
       </nav>
 
+      {isCatalog && (
+        <section className="s">
+          <h2>ARRANJO DOS PADRÕES CELULARES</h2>
+          <Segmented k="arrange" options={ARRANGEMENTS.map((l, i) => ({ value: i, label: l }))} />
+          {s.arrange === 2 && (
+            <div className="row" style={{ marginTop: 8 }}>
+              <label>semente</label>
+              <NumberInput k="seed" min={0} max={99999} />
+            </div>
+          )}
+          <div className="caption">
+            Vale para Dots, Plus, Cross e Symbol. O quincunx distribui a densidade
+            de forma mais uniforme — é o arranjo clássico de areia e vegetação em
+            carta. Symbol com arranjo aleatório é o <i>random marker fill</i>.
+          </div>
+        </section>
+      )}
+
+      {full && (
       <section className="s" id="sPresets">
         <h2>PRESETS</h2>
         <Presets />
       </section>
+      )}
 
+      {full && (
       <section className="s" id="sPattern">
         <h2>PADRÃO</h2>
         <PatternGallery />
@@ -97,7 +122,9 @@ export default function Panel() {
           </>
         )}
       </section>
+      )}
 
+      {full && (
       <section className="s" id="sScale">
         <h2>ESCALA</h2>
         <Segmented
@@ -128,7 +155,9 @@ export default function Panel() {
           </div>
         )}
       </section>
+      )}
 
+      {(full || isCatalog) && (
       <section className="s" id="sColors">
         <h2>CORES</h2>
         <ColorRow
@@ -157,7 +186,9 @@ export default function Panel() {
           <span className="unit">m · 0 = sólido</span>
         </div>
       </section>
+      )}
 
+      {full && (
       <section className="s" id="s3D">
         <h2>DEMARCAÇÃO 3D</h2>
         <Check k="repPlane" label="plano em cota fixa" />
@@ -194,14 +225,16 @@ export default function Panel() {
         <Check k="contours" label="curvas de nível (terra + batimetria)" style={{ marginTop: 8 }} />
         <Check k="sea" label="mar" />
       </section>
+      )}
 
-      {isSym && (
+      {full && isSym && (
         <details className="s" id="dSym" open>
           <summary>SÍMBOLO · SVG / PNG / JPG</summary>
           <SymbolUpload />
         </details>
       )}
 
+      {full && (
       <details className="s" id="dVis">
         <summary>VISIBILIDADE POR ZOOM</summary>
         <Check k="visOn" label="ativar min/max zoom (níveis z)" />
@@ -209,7 +242,9 @@ export default function Panel() {
         <Slider k="maxZ" label="zoom máx" min={0} max={24} step={0.5} fmt={(v) => `z ${v.toFixed(1)}`} />
         <Slider k="fadeR" label="fade (níveis)" min={0.1} max={3} step={0.1} fmt={(v) => v.toFixed(1)} />
       </details>
+      )}
 
+      {!isCatalog && (
       <details className="s" id="dScene" open>
         <summary>CENA</summary>
         <Segmented
@@ -217,7 +252,9 @@ export default function Panel() {
           columns="1fr 1fr"
           options={[{ value: 'dark', label: 'Névoa fria' }, { value: 'light', label: 'Névoa clara' }]}
         />
-        <Check k="bld" label="edifícios de teste (oclusão)" style={{ marginTop: 8 }} />
+        {/* Os edifícios não existem no comparativo de representações — o
+            controle some junto, para não prometer efeito que não tem. */}
+        {full && <Check k="bld" label="edifícios de teste (oclusão)" style={{ marginTop: 8 }} />}
         <Check k="post" label="pós-processamento" />
         {s.post && <Slider k="bloom" label="bloom" min={0} max={2} step={0.05} fmt={(v) => `${v.toFixed(2)}×`} />}
         <Check k="shadows" label="sombras do sol" />
@@ -225,8 +262,7 @@ export default function Panel() {
         <Slider k="sunAz" label="azimute do sol" min={0} max={360} step={1} fmt={(v) => `${v}°`} />
         <Slider k="sunEl" label="elevação do sol" min={2} max={80} step={1} fmt={(v) => `${v}°`} />
       </details>
-
-      {coarse ? null : null}
+      )}
     </aside>
   );
 }

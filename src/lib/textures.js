@@ -77,7 +77,7 @@ function chamferDistanceMeters(inside, w, h, mx, my) {
    O furo sai do evenodd, o que mantém o polígono com furo íntegro — e, de
    quebra, a distância também respeita o furo, então o shapeburst decai a
    partir da borda interna. */
-export function makeMaskTexture() {
+export function buildMaskTexture(shapes, bounds) {
   const cv = document.createElement('canvas');
   cv.width = cv.height = MASK_RES;
   const g = cv.getContext('2d', { willReadFrequently: true });
@@ -85,14 +85,20 @@ export function makeMaskTexture() {
   g.fillStyle = '#fff';
   const P = (pts) => {
     pts.forEach((p, i) => {
-      const px = (p[0] - MASK.xmin) / MASK.sx * MASK_RES;
-      const py = (1 - (p[1] - MASK.zmin) / MASK.sz) * MASK_RES;
+      const px = (p[0] - bounds.xmin) / bounds.sx * MASK_RES;
+      const py = (1 - (p[1] - bounds.zmin) / bounds.sz) * MASK_RES;
       i ? g.lineTo(px, py) : g.moveTo(px, py);
     });
     g.closePath();
   };
-  g.beginPath(); P(POLY_A_OUTER); P(POLY_A_HOLE); g.fill('evenodd');
-  g.beginPath(); P(POLY_B); g.fill();
+  /* Um beginPath por feição: assim o evenodd de cada furo não interfere na
+     feição vizinha. */
+  for (const sh of shapes) {
+    g.beginPath();
+    P(sh.outer);
+    (sh.holes || []).forEach(P);
+    g.fill('evenodd');
+  }
 
   const src = g.getImageData(0, 0, MASK_RES, MASK_RES).data;
   const inside = new Uint8Array(MASK_RES * MASK_RES);
@@ -100,7 +106,7 @@ export function makeMaskTexture() {
 
   const dist = chamferDistanceMeters(
     inside, MASK_RES, MASK_RES,
-    MASK.sx / MASK_RES, MASK.sz / MASK_RES,
+    bounds.sx / MASK_RES, bounds.sz / MASK_RES,
   );
 
   /* DataTexture não aplica flipY, e o desenho acima assume a origem do canvas
@@ -124,4 +130,12 @@ export function makeMaskTexture() {
   t.generateMipmaps = true;
   t.needsUpdate = true;
   return t;
+}
+
+/* Máscara padrão da cena principal: os três anéis fixos. */
+export function makeMaskTexture() {
+  return buildMaskTexture(
+    [{ outer: POLY_A_OUTER, holes: [POLY_A_HOLE] }, { outer: POLY_B }],
+    MASK,
+  );
 }

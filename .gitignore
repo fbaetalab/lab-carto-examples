@@ -1,2 +1,7 @@
 node_modules
 dist
+
+# Chaves de API. NUNCA comitar — ver .env.example.
+.env
+.env.local
+.env.*.local

@@ -7,11 +7,11 @@ import { OrbitControls } from '@react-three/drei';
    screenSpacePanning=false faz o pan correr no plano do chão, que é o
    comportamento certo para uma cena cartográfica: arrastar move o mapa, não
    a altura. */
-export default function Rig() {
+export default function Rig({ target = [60, 0, 0] }) {
   return (
     <OrbitControls
       makeDefault
-      target={[60, 0, 0]}
+      target={target}
       enableDamping
       dampingFactor={0.08}
       screenSpacePanning={false}

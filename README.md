@@ -71,3 +71,19 @@ A borda aceita **casing** — segunda fita concêntrica por baixo — para conti
 ## Deploy
 
 GitHub Actions (`.github/workflows/deploy.yml`) roda `npm ci && npm run build` e publica `dist/` a cada push em `main`. Em Settings → Pages, a fonte precisa estar em **GitHub Actions**.
+
+## Cenários
+
+O lab separa os dois eixos do problema, que antes estavam misturados num painel só:
+
+| Cenário | O que isola | Como |
+| --- | --- | --- |
+| **Preenchimentos** | simbolização 2D de área | prancha de contato ortográfica, os 11 padrões lado a lado, sem terreno nem perspectiva |
+| **Representações 3D** | como a feição ocupa o espaço | padrão fixo, as 5 representações lado a lado na mesma cota |
+| **Livre** | tudo | o sandbox com todos os controles |
+
+A separação é o ponto: com padrão e representação variando juntos não dá para saber se a leitura mudou por causa da hachura ou da geometria.
+
+## Chave de API
+
+`VITE_GOOGLE_TILES_KEY` em `.env.local` (fora do git) habilita o modo de tiles do Google. Ver `.env.example` — inclusive o aviso de que chave em app client-side é sempre visível no bundle, e que a proteção correta é restrição por referenciador, não sigilo.
