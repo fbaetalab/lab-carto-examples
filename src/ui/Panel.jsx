@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MODES, MODE_ORDER, WALL_STYLES } from '../config.js';
+import { MODES, MODE_ORDER, WALL_STYLES, ARRANGEMENTS, CELLULAR_PATTERNS, SHAPE_RANGE_M } from '../config.js';
 import { useStore } from '../store.js';
 import { replaceSymbolTexture } from '../render/uniforms.js';
 import { imageToSymbolCanvas } from '../lib/textures.js';
@@ -45,6 +45,11 @@ export default function Panel() {
 
   const isSolid = s.pattern === 0;
   const isSym = s.pattern === 8;
+  const isBrick = s.pattern === 9;
+  const isShape = s.pattern === 10;
+  const isCellular = CELLULAR_PATTERNS.includes(s.pattern);
+  /* Shapeburst não é periódico: rotação, espaçamento e espessura não o afetam. */
+  const hasGrain = !isSolid && !isShape;
   const unit = MODES[s.mode].unit;
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer:coarse)').matches;
 
@@ -67,8 +72,30 @@ export default function Panel() {
         <h2>PADRÃO</h2>
         <PatternGallery />
         <div style={{ marginTop: 8 }}>
-          <Slider k="rot" label="rotação" min={0} max={180} step={1} fmt={(v) => `${v}°`} hidden={isSolid} />
+          <Slider k="rot" label="rotação" min={0} max={180} step={1} fmt={(v) => `${v}°`} hidden={!hasGrain} />
         </div>
+        {isCellular && (
+          <>
+            <div className="caption" style={{ margin: '2px 1px 6px' }}>arranjo</div>
+            <Segmented k="arrange" options={ARRANGEMENTS.map((l, i) => ({ value: i, label: l }))} />
+            {s.arrange === 2 && (
+              <div className="row" style={{ marginTop: 8 }}>
+                <label>semente</label>
+                <NumberInput k="seed" min={0} max={99999} />
+                <span className="unit">determinística</span>
+              </div>
+            )}
+          </>
+        )}
+        {isBrick && (
+          <Slider k="brickOff" label="desloc. fiada" min={0} max={1} step={0.05} fmt={(v) => `${(v * 100) | 0}%`} />
+        )}
+        {isShape && (
+          <>
+            <Slider k="shapeW" label="alcance" min={2} max={SHAPE_RANGE_M} step={1} fmt={(v) => `${v.toFixed(0)} m`} />
+            <div className="caption">Decai da borda para dentro, a partir da distância-à-borda pré-calculada. Respeita o furo do polígono.</div>
+          </>
+        )}
       </section>
 
       <section className="s" id="sScale">
@@ -81,11 +108,11 @@ export default function Panel() {
         <Slider
           k="spacing"
           label={s.mode === 2 ? 'alvo (px)' : `espaçamento (${unit})`}
-          min={2} max={120} step={0.5} fmt={(v) => v.toFixed(1)}
+          min={2} max={120} step={0.5} fmt={(v) => v.toFixed(1)} hidden={!hasGrain}
         />
         <Slider
           k="lw" label={`espessura (${unit})`} min={0.2} max={30} step={0.1}
-          fmt={(v) => v.toFixed(1)} hidden={isSolid || isSym}
+          fmt={(v) => v.toFixed(1)} hidden={!hasGrain || isSym}
         />
         <Slider
           k="sym" label={`símbolo (${unit})`} min={4} max={80} step={1}
@@ -118,6 +145,10 @@ export default function Panel() {
         )}
         <ColorRow
           k="outColor" label="borda" pctKey="outW" pctLabel="m"
+          pctMin={0} pctMax={6} pctStep={0.5}
+        />
+        <ColorRow
+          k="casingColor" label="casing" pctKey="casingW" pctLabel="m"
           pctMin={0} pctMax={6} pctStep={0.5}
         />
         <div className="crow">

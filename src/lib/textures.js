@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { MASK, POLY_A_OUTER, POLY_A_HOLE, POLY_B } from '../config.js';
+import { MASK, SHAPE_RANGE_M, POLY_A_OUTER, POLY_A_HOLE, POLY_B } from '../config.js';
+
+const MASK_RES = 1024;
 
 /* Símbolo padrão: asterisco de três traços. */
 export function defaultSymbolCanvas() {
@@ -27,24 +29,99 @@ export function imageToSymbolCanvas(img) {
   return c;
 }
 
-/* Máscara top-down dos polígonos (mundo → textura), consumida pelo drape do
-   terreno. O furo sai do evenodd, o que mantém o polígono com furo íntegro. */
+/* Transformada de distância por chamfer em duas passadas.
+   Os custos são anisotrópicos (mx, my, diagonal) porque a máscara cobre uma
+   área retangular numa textura quadrada — usar custo 1 daria distância errada
+   no eixo mais comprimido. Saída já em METROS. */
+function chamferDistanceMeters(inside, w, h, mx, my) {
+  const INF = 1e9;
+  const d = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) d[i] = inside[i] ? INF : 0;
+  const dg = Math.hypot(mx, my);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (d[i] === 0) continue;
+      let m = d[i];
+      if (y > 0) {
+        m = Math.min(m, d[i - w] + my);
+        if (x > 0) m = Math.min(m, d[i - w - 1] + dg);
+        if (x < w - 1) m = Math.min(m, d[i - w + 1] + dg);
+      }
+      if (x > 0) m = Math.min(m, d[i - 1] + mx);
+      d[i] = m;
+    }
+  }
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x;
+      if (d[i] === 0) continue;
+      let m = d[i];
+      if (y < h - 1) {
+        m = Math.min(m, d[i + w] + my);
+        if (x > 0) m = Math.min(m, d[i + w - 1] + dg);
+        if (x < w - 1) m = Math.min(m, d[i + w + 1] + dg);
+      }
+      if (x < w - 1) m = Math.min(m, d[i + 1] + mx);
+      d[i] = m;
+    }
+  }
+  return d;
+}
+
+/* Máscara top-down dos polígonos (mundo → textura), com dois canais:
+     R = cobertura, consumida pelo drape do terreno;
+     G = distância até a borda em metros / SHAPE_RANGE_M, consumida pelo
+         shapeburst.
+   O furo sai do evenodd, o que mantém o polígono com furo íntegro — e, de
+   quebra, a distância também respeita o furo, então o shapeburst decai a
+   partir da borda interna. */
 export function makeMaskTexture() {
-  const cv = document.createElement('canvas'); cv.width = cv.height = 1024;
-  const g = cv.getContext('2d');
-  g.clearRect(0, 0, 1024, 1024);
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = MASK_RES;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.clearRect(0, 0, MASK_RES, MASK_RES);
   g.fillStyle = '#fff';
   const P = (pts) => {
     pts.forEach((p, i) => {
-      const px = (p[0] - MASK.xmin) / MASK.sx * 1024;
-      const py = (1 - (p[1] - MASK.zmin) / MASK.sz) * 1024;
+      const px = (p[0] - MASK.xmin) / MASK.sx * MASK_RES;
+      const py = (1 - (p[1] - MASK.zmin) / MASK.sz) * MASK_RES;
       i ? g.lineTo(px, py) : g.moveTo(px, py);
     });
     g.closePath();
   };
   g.beginPath(); P(POLY_A_OUTER); P(POLY_A_HOLE); g.fill('evenodd');
   g.beginPath(); P(POLY_B); g.fill();
-  const t = new THREE.CanvasTexture(cv);
+
+  const src = g.getImageData(0, 0, MASK_RES, MASK_RES).data;
+  const inside = new Uint8Array(MASK_RES * MASK_RES);
+  for (let i = 0; i < inside.length; i++) inside[i] = src[i * 4 + 3] > 127 ? 1 : 0;
+
+  const dist = chamferDistanceMeters(
+    inside, MASK_RES, MASK_RES,
+    MASK.sx / MASK_RES, MASK.sz / MASK_RES,
+  );
+
+  /* DataTexture não aplica flipY, e o desenho acima assume a origem do canvas
+     no topo — daí a inversão de linha ao copiar. */
+  const data = new Uint8Array(MASK_RES * MASK_RES * 4);
+  for (let r = 0; r < MASK_RES; r++) {
+    const srcRow = MASK_RES - 1 - r;
+    for (let x = 0; x < MASK_RES; x++) {
+      const si = srcRow * MASK_RES + x;
+      const di = (r * MASK_RES + x) * 4;
+      data[di] = inside[si] ? 255 : 0;
+      data[di + 1] = Math.round(Math.min(dist[si] / SHAPE_RANGE_M, 1) * 255);
+      data[di + 2] = 0;
+      data[di + 3] = 255;
+    }
+  }
+
+  const t = new THREE.DataTexture(data, MASK_RES, MASK_RES, THREE.RGBAFormat);
   t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = true;
+  t.needsUpdate = true;
   return t;
 }

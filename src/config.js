@@ -2,7 +2,23 @@
    berços de atracação, zonas de fundeio, canal de navegação, limites
    administrativos — e devem continuar mapeando. */
 
-export const PATTERNS = ['Solid', 'Hatch', 'CrossHatch', 'Dots', 'Plus', 'Cross', 'Checker', 'Bands', 'Symbol'];
+/* Índices são contrato: os presets e o JSON exportado referenciam por posição,
+   então padrões novos entram sempre no FIM da lista. */
+export const PATTERNS = [
+  'Solid', 'Hatch', 'CrossHatch', 'Dots', 'Plus', 'Cross', 'Checker', 'Bands', 'Symbol',
+  'Brick', 'Shapeburst',
+];
+
+/* Padrões celulares — os únicos em que o arranjo (quadrado/alternado/aleatório)
+   faz sentido. */
+export const CELLULAR_PATTERNS = [3, 4, 5, 8];
+
+export const ARRANGEMENTS = ['Quadrado', 'Alternado', 'Aleatório'];
+export const ARRANGEMENTS_EN = ['Square', 'Staggered', 'Random'];
+
+/* Metros codificados em 1.0 no canal de distância da máscara. Define o teto do
+   shapeburst e a resolução do campo (SHAPE_RANGE_M / 255 por passo). */
+export const SHAPE_RANGE_M = 200;
 
 export const MODES = [
   { id: 'Metros', btn: 'Metros', unit: 'm', cap: 'Tamanho físico real no terreno. Some em zoom distante — combine com visibilidade por zoom.' },
@@ -36,6 +52,9 @@ export const DEFAULT_STATE = {
   baseColor: '#D64545', baseA: 0.25,
   patColor: '#7A1010', patA: 0.9,
   outColor: '#FF5050', outW: 1.5, dash: 6,
+  casingColor: '#0C1114', casingW: 0,
+  arrange: 0, seed: 1337,
+  brickOff: 0.5, shapeW: 45,
   minPx: 8, maxPx: 120, tint: true,
   visOn: false, minZ: 12, maxZ: 22, fadeR: 1, theme: 'dark', bld: true, post: true, bloom: 0.8,
   shadows: true, ssao: true, sunAz: 130, sunEl: 34,

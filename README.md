@@ -44,6 +44,18 @@ Céu Preetham capturado uma vez por mudança de sol, servindo três papéis: sky
 
 Pós-processamento pela stack pmndrs: N8AO, bloom por limiar de luminância, ACES e SMAA.
 
+## Catálogo de padrões
+
+11 padrões: `Solid`, `Hatch`, `CrossHatch`, `Dots`, `Plus`, `Cross`, `Checker`, `Bands`, `Symbol`, `Brick`, `Shapeburst`.
+
+Os padrões celulares (`Dots`, `Plus`, `Cross`, `Symbol`) têm um eixo independente de **arranjo** — quadrado, alternado (quincunx) ou aleatório com semente determinística. `Symbol` + arranjo aleatório dá o *random marker fill*.
+
+`Shapeburst` não é periódico: decai da borda para dentro usando um campo de distância pré-calculado por transformada chamfer, gravado no canal G da mesma máscara que o drape usa no canal R. Respeita o furo do polígono.
+
+A borda aceita **casing** — segunda fita concêntrica por baixo — para continuar legível sobre qualquer base.
+
+`SPEC.md` §Apêndice B registra o que diverge da spec Unity e por quê.
+
 ## Decisões que não devem regredir
 
 1. Fase dos padrões ancorada em coordenadas de mundo (nunca UV por polígono/tile).

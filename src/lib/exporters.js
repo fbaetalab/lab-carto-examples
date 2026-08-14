@@ -1,4 +1,4 @@
-import { PATTERNS, MODES, WALL_STYLES_EN } from '../config.js';
+import { PATTERNS, MODES, WALL_STYLES_EN, ARRANGEMENTS_EN, CELLULAR_PATTERNS } from '../config.js';
 
 /* Serializa o estado no schema da spec. Esta é a saída que atravessa a
    fronteira para a Unity — o playground existe para produzir isto. */
@@ -15,12 +15,19 @@ export function buildJSON(s) {
       rotation: s.rot,
       minPixelSpacing: s.minPx,
       maxPixelSpacing: s.maxPx,
+      /* arranjo só existe em padrão celular; semente só em arranjo aleatório */
+      arrangement: CELLULAR_PATTERNS.includes(s.pattern) ? ARRANGEMENTS_EN[s.arrange] : null,
+      randomSeed: CELLULAR_PATTERNS.includes(s.pattern) && s.arrange === 2 ? s.seed : null,
+      brickOffsetRatio: s.pattern === 9 ? s.brickOff : null,
+      shapeburstWidthMeters: s.pattern === 10 ? s.shapeW : null,
     },
     appearance: {
       fillColor: s.baseColor, fillOpacity: s.baseA,
       patternColor: s.patColor, patternOpacity: s.patA, patternTintSymbol: s.tint,
       outlineColor: s.outColor, outlineWidthMeters: s.outW,
       outlineDashMeters: s.dash ? [s.dash, s.dash * 0.6] : [0, 0],
+      casingColor: s.casingW > 0 ? s.casingColor : null,
+      casingWidthMeters: s.casingW > 0 ? s.casingW : 0,
     },
     visibility: s.visOn ? { minZoom: s.minZ, maxZoom: s.maxZ, fadeRange: s.fadeR } : null,
     representation3d: {

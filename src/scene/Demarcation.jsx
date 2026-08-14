@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RINGS, POLY_A_OUTER, POLY_A_HOLE, POLY_B } from '../config.js';
 import { shapeToXZ, buildCurtain, buildRibbon, pip } from '../lib/geometry.js';
 import { terrainH } from '../lib/terrain.js';
-import { fillMat, wallMat, volMat, capMat, outMat, scatterMat } from '../render/materials.js';
+import { fillMat, wallMat, volMat, capMat, outMat, casingMat, scatterMat } from '../render/materials.js';
 import { useStore } from '../store.js';
 
 /* As cinco representações 3D da mesma feição cartográfica. Todas partem dos
@@ -121,15 +121,29 @@ function Scatter() {
 function Outlines() {
   const repPlane = useStore((s) => s.repPlane);
   const outW = useStore((s) => s.outW);
+  const casingW = useStore((s) => s.casingW);
   const planeY = useStore((s) => s.planeY);
+
   const geos = useMemo(
     () => (outW > 0 ? RINGS.map((r) => buildRibbon(r, outW, planeY + 0.12)) : []),
     [outW, planeY],
   );
+  /* Casing um pouco mais baixo e mais largo, desenhado antes (renderOrder 4 vs
+     5): a borda fica por cima, o casing aparece só como orla. */
+  const casings = useMemo(
+    () => (outW > 0 && casingW > 0
+      ? RINGS.map((r) => buildRibbon(r, outW + casingW * 2, planeY + 0.11))
+      : []),
+    [outW, casingW, planeY],
+  );
+
   useLayoutEffect(() => () => geos.forEach((g) => g.dispose()), [geos]);
+  useLayoutEffect(() => () => casings.forEach((g) => g.dispose()), [casings]);
+
   return (
     <group visible={repPlane && outW > 0}>
-      {geos.map((g, i) => <mesh key={i} geometry={g} material={outMat} renderOrder={4} />)}
+      {casings.map((g, i) => <mesh key={`c${i}`} geometry={g} material={casingMat} renderOrder={4} />)}
+      {geos.map((g, i) => <mesh key={`o${i}`} geometry={g} material={outMat} renderOrder={5} />)}
     </group>
   );
 }

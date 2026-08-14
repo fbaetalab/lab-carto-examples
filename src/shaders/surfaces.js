@@ -50,9 +50,9 @@ export const TERRAIN_FS = `
 varying vec3 vW;
 varying vec3 vWN;
 ` + PAT_LIB + SRGB + `
-uniform sampler2D uMaskT;
+/* uMaskT / uMaskMin / uMaskSize já vêm declarados na PAT_LIB — o shapeburst
+   também precisa deles, então a declaração mora lá para não duplicar. */
 uniform int   uDrape, uContours;
-uniform vec2  uMaskMin, uMaskSize;
 
 float contourLine(float h, float itv, float w){
   float d  = abs(fract(h/itv + 0.5) - 0.5) * itv;

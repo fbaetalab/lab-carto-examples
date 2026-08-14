@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { FILL_VS, FILL_FS } from '../shaders/surfaces.js';
 import { WALL_VS, WALL_FS, VOL_FS, OUT_VS, OUT_FS } from '../shaders/demarcation.js';
-import { sharedPat, wallUniforms, volUniforms, outUniforms } from './uniforms.js';
+import { sharedPat, wallUniforms, volUniforms, outUniforms, casingUniforms } from './uniforms.js';
 
 /* Materiais dos OVERLAYS. Todos unlit e transparentes: são dado sintético
    desenhado sobre o mundo, não superfície física. Nenhum deles projeta ou
@@ -47,6 +47,14 @@ export const outMat = new THREE.ShaderMaterial({
   vertexShader: OUT_VS,
   fragmentShader: OUT_FS,
   uniforms: outUniforms,
+  transparent: true,
+  side: THREE.DoubleSide,
+});
+
+export const casingMat = new THREE.ShaderMaterial({
+  vertexShader: OUT_VS,
+  fragmentShader: OUT_FS,
+  uniforms: casingUniforms,
   transparent: true,
   side: THREE.DoubleSide,
 });

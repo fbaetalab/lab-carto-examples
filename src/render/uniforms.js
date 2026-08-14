@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MASK } from '../config.js';
+import { MASK, SHAPE_RANGE_M } from '../config.js';
 import { makeMaskTexture, defaultSymbolCanvas, symbolTexture } from '../lib/textures.js';
 
 /* Uniforms como singletons de módulo, de propósito.
@@ -20,6 +20,13 @@ export const sharedPat = {
   uSpacing: { value: 0 }, uLw: { value: 0 }, uSym: { value: 0 }, uRot: { value: 0 },
   uBase: { value: new THREE.Vector4() }, uPat: { value: new THREE.Vector4() },
   uTex: { value: symTex }, uTint: { value: 1 }, uFade: { value: 1 },
+  uArrange: { value: 0 }, uSeed: { value: 1337 },
+  uBrickOff: { value: 0.5 }, uShapeW: { value: 45 },
+  uShapeRange: { value: SHAPE_RANGE_M },
+  /* A máscara é compartilhada: o drape lê o canal R, o shapeburst lê o G. */
+  uMaskT: { value: maskTex },
+  uMaskMin: { value: new THREE.Vector2(MASK.xmin, MASK.zmin) },
+  uMaskSize: { value: new THREE.Vector2(MASK.sx, MASK.sz) },
   uSw: { value: 1 }, uF: { value: 0 }, uHwW: { value: 0.05 }, uArmW: { value: 0.3 }, uSymW: { value: 0.6 },
 };
 
@@ -30,9 +37,7 @@ export function replaceSymbolTexture(canvas) {
 }
 
 export const terrainUniforms = Object.assign({
-  uMaskT: { value: maskTex }, uDrape: { value: 1 }, uContours: { value: 1 },
-  uMaskMin: { value: new THREE.Vector2(MASK.xmin, MASK.zmin) },
-  uMaskSize: { value: new THREE.Vector2(MASK.sx, MASK.sz) },
+  uDrape: { value: 1 }, uContours: { value: 1 },
 }, sharedPat);
 
 /* Overlays holográficos: sem iluminação, alfa aditivo-ish, sem sombra. */
@@ -48,4 +53,12 @@ export const volUniforms = {
 
 export const outUniforms = {
   uColor: { value: new THREE.Color('#FF5050') }, uDash: { value: 6 }, uAlpha: { value: 1 },
+};
+
+/* Casing = fita concêntrica mais larga por baixo da borda. Existe para a borda
+   continuar legível sobre qualquer base — sem ele, uma linha clara some sobre
+   areia e uma escura some sobre água funda. Nunca leva dash: é o fundo da
+   borda, não a borda. */
+export const casingUniforms = {
+  uColor: { value: new THREE.Color('#0C1114') }, uDash: { value: 0 }, uAlpha: { value: 1 },
 };

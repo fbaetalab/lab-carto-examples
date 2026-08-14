@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { createLOD, updateLOD } from '../lib/lod.js';
 import { hex4 } from '../lib/color.js';
-import { sharedPat, terrainUniforms, wallUniforms, volUniforms, outUniforms } from './uniforms.js';
+import { sharedPat, terrainUniforms, wallUniforms, volUniforms, outUniforms, casingUniforms } from './uniforms.js';
 import { capMat, scatterMat } from './materials.js';
 import { writeReadouts } from './readouts.js';
 import { readState } from '../store.js';
@@ -59,6 +59,10 @@ export default function FrameDriver() {
     sharedPat.uPat.value = hex4(s.patColor, s.patA);
     sharedPat.uTint.value = s.tint ? 1 : 0;
     sharedPat.uFade.value = fade;
+    sharedPat.uArrange.value = s.arrange;
+    sharedPat.uSeed.value = s.seed;
+    sharedPat.uBrickOff.value = s.brickOff;
+    sharedPat.uShapeW.value = s.shapeW;
     sharedPat.uSw.value = lod.s;
     sharedPat.uF.value = s.pattern === 6 ? 0 : lod.f;   /* checker: snap discreto */
     sharedPat.uHwW.value = 0.5 * (s.lw / s.spacing) * lod.s * grow;
@@ -71,6 +75,9 @@ export default function FrameDriver() {
     outUniforms.uColor.value.set(s.outColor);
     outUniforms.uDash.value = s.dash;
     outUniforms.uAlpha.value = fade;
+
+    casingUniforms.uColor.value.set(s.casingColor);
+    casingUniforms.uAlpha.value = fade;
 
     wallUniforms.uCol.value.set(s.patColor);
     wallUniforms.uTime.value = clock.current;
